@@ -1,0 +1,24 @@
+{
+  "private": true,
+  "scripts": {
+    "pretty": "prettier --config .prettierrc 'src/**/*.ts'",
+    "type": "tsc --noEmit",
+    "build": "esbuild ./src/index.ts --platform=node --bundle --external:sqlite3 --outfile=./dir/build.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@tradezon/txswaps": "^0.9.0",
+    "better-sqlite3": "^8.4.0",
+    "ethers": "^6.6.0",
+    "invariant": "^2.2.4",
+    "prettier": "^2.8.8",
+    "sqlite": "^4.2.1",
+    "sqlite3": "^5.1.6",
+    "telegraf": "^4.12.2"
+  },
+  "devDependencies": {
+    "@types/invariant": "^2.2.35",
+    "esbuild": "^0.18.2",
+    "typescript": "^5.1.3"
+  }
+}
