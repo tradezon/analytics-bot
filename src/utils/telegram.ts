@@ -82,7 +82,7 @@ Profitable tokens:\n${profitableCoins
           profitUSD.toFixed(0)
         )}$ ${
           profitETH
-            ? `${profitETH.value}ETH ${profitETH.x} ${xValue(profitETH.x)}`
+            ? `${escape(profitETH.value.toFixed(2))}ETH ${escape(profitETH.x)}x ${xValue(profitETH.x)}`
             : ''
         }`
     )
@@ -93,7 +93,7 @@ Rest tokens:\n${nonprofitableCoins
       ({ token, symbol, profitUSD, profitETH }) =>
         `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
           profitUSD.toFixed(0)
-        )}$ ${profitETH ? `${profitETH.value}ETH` : ''}`
+        )}$ ${profitETH ? `${escape(profitETH.value.toFixed(3))}ETH` : ''}`
     )
     .join('\n')}`;
 }

@@ -3,7 +3,7 @@ export interface Report {
     token: string;
     symbol: string;
     profitUSD: number;
-    profitETH?: { value: string; x: string };
+    profitETH?: { value: number; x: string };
   }>;
   winrate: number;
   pnlUSD: number;

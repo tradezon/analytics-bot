@@ -57,7 +57,7 @@ class TokenHistory {
     );
   }
 
-  getProfitETH(): { value: string; x: string } | false {
+  getProfitETH(): { value: number; x: string } | false {
     if (
       this._ETH === 0n ||
       this._DAI !== 0n ||
@@ -66,8 +66,8 @@ class TokenHistory {
     )
       return false;
     return {
-      value: formatEther(this._ETH),
-      x: (Number(this._ETH) / Number(this._inETH)).toFixed(1)
+      value: Number(formatEther(this._ETH)),
+      x: (1.0 + Number(this._ETH) / Number(this._inETH)).toFixed(1)
     };
   }
 
@@ -299,13 +299,13 @@ export class AnalyticsEngine {
       if (t) {
         // TODO some tokens could be left, should be taken from deposit
         const profitUSD = token.getProfitUSD(ethUSD);
-        // const profitETH = token.getProfitETH();
+        const profitETH = token.getProfitETH();
         if (profitUSD >= 0) wins++;
         report.tokens.push({
           token: token.token,
           symbol: t.symbol,
           profitUSD: profitUSD,
-          // profitETH: profitETH || undefined
+          profitETH: profitETH || undefined
         });
       }
     }
