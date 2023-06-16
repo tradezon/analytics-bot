@@ -94,7 +94,6 @@ export async function admin(): Promise<[BaseScene<any>, Database]> {
     );
   });
   scenario.command(/delete_(.+)$/, async (ctx, next) => {
-    debugger;
     const match = ctx.message?.text.match(/delete_(.+)$/);
     if (!match) return next();
     const id = match[1];

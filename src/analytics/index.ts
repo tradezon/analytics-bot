@@ -229,7 +229,6 @@ export class AnalyticsEngine {
   ) {}
 
   async execute(wallet: string, swaps: TransactionSwap[]): Promise<Report> {
-    debugger;
     const walletState = new Wallet();
     const history = new History();
 
