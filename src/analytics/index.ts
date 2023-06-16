@@ -159,8 +159,8 @@ class Wallet {
   }
 
   hasBalance(token: string, value: bigint) {
-    const entry = this.tokens.get(token) || 0n;
-    return entry >= value;
+    const entry = this.tokens.get(token);
+    return entry ? entry >= value : false;
   }
 
   withdraw(token: string, value: bigint) {
@@ -224,6 +224,28 @@ export class AnalyticsEngine {
     const history = new History();
 
     const bannedTokens = new Set<string>();
+    const withdrawFromHistory = (tokenHistory: TokenHistory) => {
+      if (tokenHistory.eth >= 0n) {
+        walletState.withdraw(WETH_ADDRESS, tokenHistory.eth);
+      } else {
+        walletState.deposit(WETH_ADDRESS, tokenHistory.eth);
+      }
+      if (tokenHistory.dai >= 0n) {
+        walletState.withdraw(DAI_ADDRESS, tokenHistory.dai);
+      } else {
+        walletState.deposit(DAI_ADDRESS, tokenHistory.dai);
+      }
+      if (tokenHistory.usdt >= 0n) {
+        walletState.withdraw(USDT_ADDRESS, tokenHistory.usdt);
+      } else {
+        walletState.deposit(USDT_ADDRESS, tokenHistory.usdt);
+      }
+      if (tokenHistory.usdc >= 0n) {
+        walletState.withdraw(USDC_ADDRESS, tokenHistory.usdc);
+      } else {
+        walletState.deposit(USDC_ADDRESS, tokenHistory.usdc);
+      }
+    };
     for (const swap of swaps) {
       history.push(swap);
       const len = swap.tokenIn.length;
@@ -233,6 +255,8 @@ export class AnalyticsEngine {
           !walletState.hasBalance(swap.tokenIn[i], swap.amountIn[i])
         ) {
           bannedTokens.add(swap.tokenIn[i]);
+          const tokenHistory = history.pop(swap.tokenIn[i]);
+          if (tokenHistory) withdrawFromHistory(tokenHistory);
         } else {
           walletState.withdraw(swap.tokenIn[i], swap.amountIn[i]);
           walletState.deposit(swap.tokenOut[i], swap.amountOut[i]);
@@ -244,28 +268,7 @@ export class AnalyticsEngine {
     for (const token of bannedTokens) {
       const tokenHistory = history.pop(token);
       walletState.removeToken(token);
-      if (tokenHistory) {
-        if (tokenHistory.eth >= 0n) {
-          walletState.withdraw(WETH_ADDRESS, tokenHistory.eth);
-        } else {
-          walletState.deposit(WETH_ADDRESS, tokenHistory.eth);
-        }
-        if (tokenHistory.dai >= 0n) {
-          walletState.withdraw(DAI_ADDRESS, tokenHistory.dai);
-        } else {
-          walletState.deposit(DAI_ADDRESS, tokenHistory.dai);
-        }
-        if (tokenHistory.usdt >= 0n) {
-          walletState.withdraw(USDT_ADDRESS, tokenHistory.usdt);
-        } else {
-          walletState.deposit(USDT_ADDRESS, tokenHistory.usdt);
-        }
-        if (tokenHistory.usdc >= 0n) {
-          walletState.withdraw(USDC_ADDRESS, tokenHistory.usdc);
-        } else {
-          walletState.deposit(USDC_ADDRESS, tokenHistory.usdc);
-        }
-      }
+      if (tokenHistory) withdrawFromHistory(tokenHistory);
     }
     //#endregion
 
