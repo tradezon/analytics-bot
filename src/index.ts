@@ -5,6 +5,7 @@ import { readConfig } from './config';
 import { wallet } from './commands/wallet';
 import { admin, Tier, User } from './commands/admin';
 import { createAuthMiddleware } from './utils/telegram-auth-middleware';
+import { findBlockByTimestamp } from './utils/find-block-by-timestamp';
 
 const WALLET_TEXT = 'Wallet analytics 💰';
 const ADMIN_TEXT = 'Admin panel 👑';
@@ -37,10 +38,17 @@ async function main() {
   const provider = config.etherium_mainnet.match(/^https?\:/)
     ? new JsonRpcProvider(config.etherium_mainnet)
     : new WebSocketProvider(config.etherium_mainnet);
+  const initialBlock = await findBlockByTimestamp(
+    Date.now() / 1000 - 3 * 7 * 24 * 60 * 60,
+    provider
+  );
+  let blockNumber = initialBlock.number;
+  setInterval(() => blockNumber++, 10 * 1000).unref();
+  console.log(`Initial block number ${blockNumber}`);
   const bot = new Telegraf(config.token);
   bot.use(Telegraf.log());
   const [adminScenario, db] = await admin();
-  const walletScenario = wallet(bot, provider);
+  const walletScenario = wallet(bot, provider, () => blockNumber);
   const stage = new Scenes.Stage([walletScenario as any, adminScenario as any]);
   bot.use(session());
   bot.use(createAuthMiddleware(db));
@@ -62,12 +70,10 @@ async function main() {
     );
   });
 
-  bot.hears('Admin panel 👑', (ctx) =>
-    (ctx as any).scene.enter(adminScenario.id)
-  );
-  bot.hears('Wallet analytics 💰', (ctx) =>
-    (ctx as any).scene.enter(walletScenario.id)
-  );
+  bot.command('admin', Scenes.Stage.enter(adminScenario.id) as any);
+  bot.command('wallet', Scenes.Stage.enter(walletScenario.id) as any);
+  bot.hears(ADMIN_TEXT, Scenes.Stage.enter(adminScenario.id) as any);
+  bot.hears(WALLET_TEXT, Scenes.Stage.enter(walletScenario.id) as any);
 
   bot.launch();
 

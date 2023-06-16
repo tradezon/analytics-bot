@@ -61,11 +61,6 @@ export async function admin(): Promise<[BaseScene<any>, Database]> {
       ])
     );
   });
-  // scenario.on("message", (ctx) => {
-  //   if (ctx.state.nextScene) {
-  //     return (ctx as any).scene.leave();
-  //   }
-  // })
   scenario.action(usersAction, async (ctx) => {
     const res: User[] = await db.all('SELECT * from User');
     ctx.replyWithMarkdownV2(
