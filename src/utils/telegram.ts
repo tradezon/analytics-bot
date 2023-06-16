@@ -48,6 +48,7 @@ export function markdownUserLink(text: string, username: string) {
 }
 
 export function reportToMarkdownV2(report: Report) {
+  const allTokensLength = report.tokens.length;
   const firstNonProfitableCoins = report.tokens.findIndex(
     (t) => t.profitUSD < 0
   );
@@ -67,22 +68,43 @@ export function reportToMarkdownV2(report: Report) {
       return b.profitUSD - a.profitUSD;
     });
 
-  const nonprofitableCoins = report.tokens
+  let nonprofitableCoins = report.tokens
     .slice(firstNonProfitableCoins)
     .reverse();
+  let lost = 0;
+  const nonprofitableCoinsWithLessThan300DollarsLost: Report['tokens'] = [];
+  if (allTokensLength > 18) {
+    const nonprofitableCoinsWithLessThan300DollarsLostIndex =
+      nonprofitableCoins.findIndex((t) => t.profitUSD > -300);
+    for (
+      let i = nonprofitableCoinsWithLessThan300DollarsLostIndex;
+      i < nonprofitableCoins.length;
+      i++
+    ) {
+      const token = nonprofitableCoins[i];
+      nonprofitableCoinsWithLessThan300DollarsLost.push(token);
+      lost += token.profitUSD;
+    }
+    nonprofitableCoins = nonprofitableCoins.slice(
+      0,
+      nonprofitableCoinsWithLessThan300DollarsLostIndex
+    );
+  }
   return `Report for address ${address(report.address)}
 *PNL ${escape(report.pnlUSD.toFixed(0))}$* \\| *Winrate ${escape(
     report.winrate / 1000
   )}*
 
-Profitable tokens:\n${profitableCoins
+*Profitable tokens*:\n${profitableCoins
     .map(
       ({ token, symbol, profitUSD, profitETH }) =>
         `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
           profitUSD.toFixed(0)
         )}$ ${
           profitETH
-            ? `${escape(profitETH.value.toFixed(2))}ETH ${escape(profitETH.x)}x ${xValue(profitETH.x)}`
+            ? `${escape(profitETH.value.toFixed(2))}ETH ${escape(
+                profitETH.x
+              )}x ${xValue(profitETH.x)}`
             : ''
         }`
     )
@@ -95,5 +117,14 @@ Rest tokens:\n${nonprofitableCoins
           profitUSD.toFixed(0)
         )}$ ${profitETH ? `${escape(profitETH.value.toFixed(3))}ETH` : ''}`
     )
-    .join('\n')}`;
+    .join('\n')}${
+    nonprofitableCoinsWithLessThan300DollarsLost.length > 0
+      ? `\nCoins with less than 300$ loss \\( Total of ${escape(
+          lost.toFixed(0)
+        )}$ \\):
+${nonprofitableCoinsWithLessThan300DollarsLost
+  .map(({ token, symbol }) => hyperLink(etherscanAddressLink(token), symbol))
+  .join('\\, ')}`
+      : ''
+  }`;
 }
