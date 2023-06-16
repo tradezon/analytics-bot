@@ -6,13 +6,7 @@ import {
   JsonRpcProvider,
   WebSocketProvider
 } from 'ethers';
-
-interface Report {
-  tokens: { token: string; symbol: string; profitUSD: number }[];
-  winrate: number;
-  pnlUSD: number;
-  wallet: Array<{ token: string; balance: bigint }>;
-}
+import type { Report } from '../types';
 
 const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
@@ -27,6 +21,7 @@ const STABLES = new Set<string>([
 
 class TokenHistory {
   private _swaps: TransactionSwap[] = [];
+  private _inETH = 0n;
   private _ETH = 0n;
   private _USDT = 0n; // 6 decimals
   private _USDC = 0n; // 6 decimals
@@ -53,13 +48,27 @@ class TokenHistory {
     return this._DAI;
   }
 
-  getProfit(ethPrice: number): number {
+  getProfitUSD(ethPrice: number): number {
     return (
       Number(formatEther(this._ETH)) * ethPrice +
       Number(formatUnits(this._USDT, 6)) +
       Number(formatUnits(this._USDC, 6)) +
       Number(formatUnits(this._DAI, 18))
     );
+  }
+
+  getProfitETH(): { value: string; x: string } | false {
+    if (
+      this._ETH === 0n ||
+      this._DAI !== 0n ||
+      this._USDC !== 0n ||
+      this._USDT !== 0n
+    )
+      return false;
+    return {
+      value: formatEther(this._ETH),
+      x: (Number(this._ETH) / Number(this._inETH)).toFixed(1)
+    };
   }
 
   push(swap: TransactionSwap) {
@@ -88,6 +97,7 @@ class TokenHistory {
         switch (swap.tokenIn[i]) {
           case WETH_ADDRESS:
             this._ETH -= swap.amountIn[i];
+            this._inETH += swap.amountIn[i];
             break;
           case USDT_ADDRESS:
             this._USDT -= swap.amountIn[i];
@@ -275,6 +285,7 @@ export class AnalyticsEngine {
     let pnl = 0;
     let wins = 0;
     const report: Report = {
+      address: wallet,
       tokens: [],
       pnlUSD: 0,
       winrate: 1000,
@@ -287,12 +298,14 @@ export class AnalyticsEngine {
       const t = await getErc20TokenData(token.token, this.provider);
       if (t) {
         // TODO some tokens could be left, should be taken from deposit
-        const profit = token.getProfit(ethUSD);
-        if (profit >= 0) wins++;
+        const profitUSD = token.getProfitUSD(ethUSD);
+        // const profitETH = token.getProfitETH();
+        if (profitUSD >= 0) wins++;
         report.tokens.push({
           token: token.token,
           symbol: t.symbol,
-          profitUSD: profit
+          profitUSD: profitUSD,
+          // profitETH: profitETH || undefined
         });
       }
     }
