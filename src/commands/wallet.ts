@@ -20,7 +20,9 @@ export function wallet(
   const scenarioTypeWallet = new Scenes.WizardScene(
     'SCENARIO_TYPE_WALLET',
     ((ctx: any) => {
-      ctx.replyWithHTML('<b>Type wallet address</b> 🖊️');
+      ctx.replyWithHTML(
+        '<b>Type wallet address</b> 🖊️ <i>only Etherium mainnet supported in alpha</i>'
+      );
       return ctx.wizard.next();
     }) as any,
     async (ctx) => {
@@ -46,6 +48,10 @@ export function wallet(
           );
           if (!swaps) {
             ctx.replyWithHTML('<b>Execution error.</b>Try later.. ❌');
+            return ctx.scene.leave();
+          }
+          if (swaps.length === 0) {
+            ctx.replyWithHTML('Trade transactions was not found 💸');
             return ctx.scene.leave();
           }
 
