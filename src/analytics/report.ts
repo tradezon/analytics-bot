@@ -1,11 +1,14 @@
 import { formatUnits } from 'ethers';
 import type { JsonRpcProvider, WebSocketProvider } from 'ethers';
+import { customAlphabet } from 'nanoid';
 import { getErc20TokenData } from '../utils/get-erc20-token-data';
 import type { Report, TokenInfo } from '../types';
 import type { Wallet } from './wallet';
 import type { History } from './history';
 import type { PriceOracle } from './price-oracle';
 import { DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS, WETH_ADDRESS } from './const';
+
+const nanoid = customAlphabet('1234567890abcdef', 10);
 
 export async function createReport(
   provider: JsonRpcProvider | WebSocketProvider,
@@ -85,5 +88,6 @@ export async function createReport(
   const length = Array.from(history.tokens).length;
   report.winrate = length === 0 ? 1 : Math.round((wins / length) * 1000);
 
+  report.id = nanoid();
   return report;
 }

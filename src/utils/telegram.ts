@@ -42,7 +42,7 @@ function xValue(x: string) {
   if (v < 5.0) return '🔥';
   if (v < 8) return '🔥🔥';
   if (v < 10.1) return '🔥🔥🔥';
-  return '🔥🔞️️️️️️';
+  return '🔥️🔝️🔥️️️️';
 }
 
 export function markdownUserLink(text: string, username: string) {
@@ -60,7 +60,10 @@ function renderInlineTokens(tokens: TokenInfo[]) {
     .join('\\, ');
 }
 
-function divideTokensWithLossThreshold(tokens: TokenInfo[], threshold: number) {
+function divideTokensWithLossThreshold(
+  tokens: TokenInfo[],
+  threshold: number
+): [TokenInfo[], TokenInfo[]] {
   const idx = tokens.findIndex((t) => t.profitUSD < threshold);
   return idx === -1 ? [tokens, []] : [tokens.slice(0, idx), tokens.slice(idx)];
 }
@@ -77,7 +80,144 @@ function formatDate(date: number) {
   return dayjs(date).format('DD.MM.YYYY');
 }
 
-export function reportToMarkdownV2(report: Report) {
+export function renderShort(report: Report): [string, number] {
+  let loss = 0;
+  let [profitableCoins, lossCoins] = divideTokensWithLossThreshold(
+    report.tokens,
+    0
+  );
+
+  profitableCoins = profitableCoins.sort((a, b) => {
+    if (a.profitETH?.x) {
+      if (b.profitETH?.x) {
+        const aValue = parseFloat(a.profitETH.x);
+        const bValue = parseFloat(b.profitETH.x);
+        return bValue - aValue;
+      }
+      return -1;
+    } else if (b.profitETH?.x) {
+      return 1;
+    }
+    return b.profitUSD - a.profitUSD;
+  });
+  for (const coin of lossCoins) loss += coin.profitUSD;
+
+  //#region current balance
+  let currentLossing = 0;
+  let [profitableWalletCoins, lossWalletCoins] = divideTokensWithLossThreshold(
+    report.wallet,
+    0
+  );
+  for (const coin of lossWalletCoins) currentLossing += coin.profitUSD;
+  //#endregion
+
+  return [
+    `${header(report)}
+
+📈 *Profitable tokens*:\n${profitableCoins
+      .map(
+        ({ token, symbol, profitUSD, profitETH }) =>
+          `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
+            profitUSD.toFixed(0)
+          )}$ ${
+            profitETH
+              ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
+                  profitETH.x
+                )}`
+              : ''
+          }`
+      )
+      .join('\n')}
+${
+  report.wallet.length > 0
+    ? `\n\n📊 *Current tokens in wallet*: \\( not in PNL \\)\n${profitableWalletCoins
+        .map(
+          ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
+            `${
+              balance
+                ? `${escape(
+                    Number(formatUnits(balance.value, decimals)).toFixed(0)
+                  )}`
+                : ''
+            }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
+              profitUSD.toFixed(0)
+            )}$ ${
+              profitUSD >= 300_000
+                ? '⚠️ __price estimation maybe wrong__'
+                : profitETH
+                ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
+                    profitETH.x
+                  )}`
+                : ''
+            }`
+        )
+        .join('\n')}\nRest ${escape(currentLossing.toFixed(0))}$`
+    : ''
+}`,
+    -loss
+  ];
+}
+
+function header(report: Report) {
+  return `Report for address ${address(report.address)}
+From ${escape(formatDate(report.period[0]))} to ${escape(
+    formatDate(report.period[1])
+  )}
+*PNL ${escape(report.pnlUSD.toFixed(0))}$* \\| *Winrate ${escape(
+    report.winrate / 1000
+  )}*`;
+}
+
+export function renderLosses(report: Report) {
+  const [, nonprofitableCoins] = divideTokensWithLossThreshold(
+    report.tokens,
+    0
+  );
+
+  return (
+    header(report) +
+    '\n\n📉 *Losses*:\n' +
+    nonprofitableCoins
+      .map(
+        ({ token, symbol, profitUSD, profitETH }) =>
+          `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
+            profitUSD.toFixed(0)
+          )}$ ${
+            profitETH ? `\\| ${escape(profitETH.value.toFixed(3))}ETH` : ''
+          }`
+      )
+      .join('\n')
+  );
+}
+
+export function renderCurrentTokens(report: Report) {
+  return `${header(
+    report
+  )}\n\n📊 *Current tokens in wallet*: \\( not in PNL \\)\n${report.wallet
+    .map(
+      ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
+        `${
+          balance
+            ? `${escape(
+                Number(formatUnits(balance.value, decimals)).toFixed(0)
+              )}`
+            : ''
+        }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
+          profitUSD.toFixed(0)
+        )}$ ${
+          profitUSD >= 300_000
+            ? '⚠️ __price estimation maybe wrong__'
+            : profitETH
+            ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
+                profitETH.x
+              )}`
+            : ''
+        }`
+    )
+    .join('\n')}`;
+}
+
+export function renderFull(report: Report) {
   const allTokensLength = report.tokens.length;
   let [profitableCoins, nonprofitableCoins] = divideTokensWithLossThreshold(
     report.tokens,
@@ -124,15 +264,9 @@ export function reportToMarkdownV2(report: Report) {
   }
   //#endregion
 
-  return `Report for address ${address(report.address)}
-From ${escape(formatDate(report.period[0]))} to ${escape(
-    formatDate(report.period[1])
-  )}
-*PNL ${escape(report.pnlUSD.toFixed(0))}$* \\| *Winrate ${escape(
-    report.winrate / 1000
-  )}*
+  return `${header(report)}
 
-*Profitable tokens*:\n${profitableCoins
+📈 *Profitable tokens*:\n${profitableCoins
     .map(
       ({ token, symbol, profitUSD, profitETH }) =>
         `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
@@ -149,7 +283,7 @@ From ${escape(formatDate(report.period[0]))} to ${escape(
 
 ${
   walletTokens.length > 0
-    ? `*Current tokens in wallet*: \\( not in PNL \\)\n${walletTokens
+    ? `📊 *Current tokens in wallet*: \\( not in PNL \\)\n${walletTokens
         .map(
           ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
             `${
@@ -181,7 +315,7 @@ ${renderInlineTokens(currentTokensThatLossingLessThan350Dollars)}`
     : ''
 }
 
-Rest tokens:\n${nonprofitableCoins
+📉 Loss tokens:\n${nonprofitableCoins
     .map(
       ({ token, symbol, profitUSD, profitETH }) =>
         `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(

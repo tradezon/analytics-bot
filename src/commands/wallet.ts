@@ -1,11 +1,36 @@
 // @ts-expect-error
 import EtherscanApi from 'etherscan-api';
-import { Telegraf, Scenes } from 'telegraf';
+import { Telegraf, Scenes, Markup } from 'telegraf';
 import { getAddress, JsonRpcProvider, WebSocketProvider } from 'ethers';
 import type { BaseScene } from 'telegraf/src/scenes/base';
 import { getAllSwaps } from '../transactions';
 import { AnalyticsEngine } from '../analytics';
-import { reportToMarkdownV2 } from '../utils/telegram';
+import reportsCache from '../analytics/cache';
+import {
+  renderCurrentTokens,
+  renderLosses,
+  renderShort
+} from '../utils/telegram';
+import { Report } from '../types';
+
+function replyWithShortView(ctx: any, report: Report) {
+  const [shortReport, losses] = renderShort(report);
+  const buttons: any[] = [];
+  if (losses != 0) {
+    buttons.push(
+      Markup.button.callback(`Losses ${losses.toFixed(0)}$ 📉`, `losses_${report.id}`)
+    );
+  }
+  if (report.wallet.length > 0) {
+    buttons.push(
+      Markup.button.callback('Current tokens 📊', `current_${report.id}`)
+    );
+  }
+  return ctx.replyWithMarkdownV2(shortReport, {
+    ...Markup.inlineKeyboard(buttons),
+    disable_web_page_preview: true
+  });
+}
 
 export function wallet(
   bot: Telegraf,
@@ -64,9 +89,8 @@ export function wallet(
             [block.timestamp * 1000, now],
             swaps
           );
-          ctx.replyWithMarkdownV2(reportToMarkdownV2(report), {
-            disable_web_page_preview: true
-          });
+          reportsCache.set(report.id, report);
+          replyWithShortView(ctx, report);
           return ctx.scene.leave();
         } catch (e: any) {
           console.log(e.message || e.toString());
@@ -77,5 +101,43 @@ export function wallet(
       }
     }
   );
+
+  bot.action(/^losses_(.+)/, (ctx) => {
+    const id = ctx.match[1];
+    const report = reportsCache.get(id);
+    if (!report) {
+      return ctx.replyWithHTML('<b>Report not found</b> ❌');
+    }
+    return ctx.replyWithMarkdownV2(renderLosses(report), {
+      ...Markup.inlineKeyboard([
+        Markup.button.callback(`Return to report ⬅️`, `short_${report.id}`)
+      ]),
+      disable_web_page_preview: true
+    });
+  });
+
+  bot.action(/^current_(.+)/, (ctx) => {
+    const id = ctx.match[1];
+    const report = reportsCache.get(id);
+    if (!report) {
+      return ctx.replyWithHTML('<b>Report not found</b> ❌');
+    }
+    return ctx.replyWithMarkdownV2(renderCurrentTokens(report), {
+      ...Markup.inlineKeyboard([
+        Markup.button.callback(`Return to report ⬅️`, `short_${report.id}`)
+      ]),
+      disable_web_page_preview: true
+    });
+  });
+
+  bot.action(/^short_(.+)/, (ctx) => {
+    const id = ctx.match[1];
+    const report = reportsCache.get(id);
+    if (!report) {
+      return ctx.replyWithHTML('<b>Report not found</b> ❌');
+    }
+    return replyWithShortView(ctx, report);
+  });
+
   return scenarioTypeWallet as any;
 }
