@@ -162,8 +162,8 @@ ${
                 : ''
             } ${
               balance
-                ? `${Number(formatUnits(balance.value, decimals)).toFixed(
-                    1
+                ? `${escape(
+                    Number(formatUnits(balance.value, decimals)).toFixed(1)
                   )} tokens`
                 : ''
             }`
