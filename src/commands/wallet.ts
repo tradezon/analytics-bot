@@ -18,12 +18,12 @@ function replyWithShortView(ctx: any, report: Report) {
   const buttons: any[] = [];
   if (losses != 0) {
     buttons.push(
-      Markup.button.callback(`Losses ${losses.toFixed(0)}$ 📉`, `losses_${report.id}`)
+      Markup.button.callback(`Losses (${losses.toFixed(0)}$) 📉`, `losses_${report.id}`)
     );
   }
   if (report.wallet.length > 0) {
     buttons.push(
-      Markup.button.callback('Current tokens 📊', `current_${report.id}`)
+      Markup.button.callback(`Current coins (${report.wallet.length}) 📊`, `current_${report.id}`)
     );
   }
   return ctx.replyWithMarkdownV2(shortReport, {

@@ -114,7 +114,7 @@ export function renderShort(report: Report): [string, number] {
   return [
     `${header(report)}
 
-📈 *Profitable tokens*:\n${profitableCoins
+📈 *Profitable coins*:\n${profitableCoins
       .map(
         ({ token, symbol, profitUSD, profitETH }) =>
           `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
@@ -130,7 +130,7 @@ export function renderShort(report: Report): [string, number] {
       .join('\n')}
 ${
   report.wallet.length > 0
-    ? `\n\n📊 *Current tokens in wallet*: \\( not in PNL \\)\n${profitableWalletCoins
+    ? `\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${profitableWalletCoins
         .map(
           ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
             `${
@@ -193,7 +193,7 @@ export function renderLosses(report: Report) {
 export function renderCurrentTokens(report: Report) {
   return `${header(
     report
-  )}\n\n📊 *Current tokens in wallet*: \\( not in PNL \\)\n${report.wallet
+  )}\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${report.wallet
     .map(
       ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
         `${
@@ -266,7 +266,7 @@ export function renderFull(report: Report) {
 
   return `${header(report)}
 
-📈 *Profitable tokens*:\n${profitableCoins
+📈 *Profitable coins*:\n${profitableCoins
     .map(
       ({ token, symbol, profitUSD, profitETH }) =>
         `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
@@ -283,7 +283,7 @@ export function renderFull(report: Report) {
 
 ${
   walletTokens.length > 0
-    ? `📊 *Current tokens in wallet*: \\( not in PNL \\)\n${walletTokens
+    ? `📊 *Current coins in wallet*: \\( not in PNL \\)\n${walletTokens
         .map(
           ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
             `${
@@ -315,7 +315,7 @@ ${renderInlineTokens(currentTokensThatLossingLessThan350Dollars)}`
     : ''
 }
 
-📉 Loss tokens:\n${nonprofitableCoins
+📉 Loss coins:\n${nonprofitableCoins
     .map(
       ({ token, symbol, profitUSD, profitETH }) =>
         `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
