@@ -1,4 +1,4 @@
-import type { Report } from '../types';
+import type { Report, TokenInfo } from '../types';
 
 export const escape = (str: any) =>
   str
@@ -47,49 +47,77 @@ export function markdownUserLink(text: string, username: string) {
   return `[${escape(text)}](tg://resolve?domain=${username})`;
 }
 
+function renderX(x?: string) {
+  if (!x) return '';
+  return `${escape(x)}x ${xValue(x)}`;
+}
+
+function renderInlineTokens(tokens: TokenInfo[]) {
+  return tokens
+    .map(({ token, symbol }) => hyperLink(etherscanAddressLink(token), symbol))
+    .join('\\, ');
+}
+
+function divideTokensWithLossThreshold(tokens: TokenInfo[], threshold: number) {
+  const idx = tokens.findIndex((t) => t.profitUSD < threshold);
+  return idx === -1 ? [tokens, []] : [tokens.slice(0, idx), tokens.slice(idx)];
+}
+
+function divideTokensWithProfitThreshold(
+  tokens: TokenInfo[],
+  threshold: number
+) {
+  const idx = tokens.findIndex((t) => t.profitUSD > threshold);
+  return idx === -1 ? [tokens, []] : [tokens.slice(0, idx), tokens.slice(idx)];
+}
+
 export function reportToMarkdownV2(report: Report) {
   const allTokensLength = report.tokens.length;
-  const firstNonProfitableCoins = report.tokens.findIndex(
-    (t) => t.profitUSD < 0
+  let [profitableCoins, nonprofitableCoins] = divideTokensWithLossThreshold(
+    report.tokens,
+    0
   );
-  const profitableCoins = report.tokens
-    .slice(0, firstNonProfitableCoins)
-    .sort((a, b) => {
-      if (a.profitETH?.x) {
-        if (b.profitETH?.x) {
-          const aValue = parseFloat(a.profitETH.x);
-          const bValue = parseFloat(b.profitETH.x);
-          return bValue - aValue;
-        }
-        return -1;
-      } else if (b.profitETH?.x) {
-        return 1;
-      }
-      return b.profitUSD - a.profitUSD;
-    });
 
-  let nonprofitableCoins = report.tokens
-    .slice(firstNonProfitableCoins)
-    .reverse();
+  profitableCoins = profitableCoins.sort((a, b) => {
+    if (a.profitETH?.x) {
+      if (b.profitETH?.x) {
+        const aValue = parseFloat(a.profitETH.x);
+        const bValue = parseFloat(b.profitETH.x);
+        return bValue - aValue;
+      }
+      return -1;
+    } else if (b.profitETH?.x) {
+      return 1;
+    }
+    return b.profitUSD - a.profitUSD;
+  });
+
+  //#region non-profitable tokens
   let lost = 0;
-  const nonprofitableCoinsWithLessThan300DollarsLost: Report['tokens'] = [];
+  let nonprofitableCoinsWithLessThan350DollarsLost: TokenInfo[] = [];
   if (allTokensLength > 18) {
-    const nonprofitableCoinsWithLessThan300DollarsLostIndex =
-      nonprofitableCoins.findIndex((t) => t.profitUSD > -300);
-    for (
-      let i = nonprofitableCoinsWithLessThan300DollarsLostIndex;
-      i < nonprofitableCoins.length;
-      i++
-    ) {
-      const token = nonprofitableCoins[i];
-      nonprofitableCoinsWithLessThan300DollarsLost.push(token);
+    [nonprofitableCoinsWithLessThan350DollarsLost, nonprofitableCoins] =
+      divideTokensWithProfitThreshold(nonprofitableCoins, -349);
+    for (const token of nonprofitableCoinsWithLessThan350DollarsLost) {
       lost += token.profitUSD;
     }
-    nonprofitableCoins = nonprofitableCoins.slice(
-      0,
-      nonprofitableCoinsWithLessThan300DollarsLostIndex
-    );
   }
+  nonprofitableCoins = nonprofitableCoins.reverse();
+  //#endregion
+
+  //#region current balance
+  let currentLossing = 0;
+  let walletTokens: TokenInfo[] = report.wallet;
+  let currentTokensThatLossingLessThan350Dollars: TokenInfo[] = [];
+  if (walletTokens.length > 14) {
+    [walletTokens, currentTokensThatLossingLessThan350Dollars] =
+      divideTokensWithLossThreshold(walletTokens, -349);
+    for (const token of currentTokensThatLossingLessThan350Dollars) {
+      currentLossing += token.profitUSD;
+    }
+  }
+  //#endregion
+
   return `Report for address ${address(report.address)}
 *PNL ${escape(report.pnlUSD.toFixed(0))}$* \\| *Winrate ${escape(
     report.winrate / 1000
@@ -102,13 +130,35 @@ export function reportToMarkdownV2(report: Report) {
           profitUSD.toFixed(0)
         )}$ ${
           profitETH
-            ? `${escape(profitETH.value.toFixed(2))}ETH ${escape(
-                profitETH.x
-              )}x ${xValue(profitETH.x)}`
+            ? `${escape(profitETH.value.toFixed(2))}ETH ${renderX(profitETH.x)}`
             : ''
         }`
     )
     .join('\n')}
+
+${
+  walletTokens.length > 0
+    ? `*Current tokens in wallet*: \\( not in PNL \\)\n${walletTokens
+        .map(
+          ({ token, symbol, profitUSD, profitETH }) =>
+            `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
+              profitUSD.toFixed(0)
+            )}$ ${
+              profitUSD >= 300_000
+                ? '⚠️ __price estimation could be wrong__'
+                : profitETH
+                ? `${escape(profitETH.value.toFixed(2))}ETH ${renderX(
+                    profitETH.x
+                  )}`
+                : ''
+            }`
+        )
+        .join('\n')}\nCoins with more than 350$ loss \\( Total of ${escape(
+        currentLossing.toFixed(0)
+      )}$ \\):
+${renderInlineTokens(currentTokensThatLossingLessThan350Dollars)}`
+    : ''
+}
 
 Rest tokens:\n${nonprofitableCoins
     .map(
@@ -118,13 +168,11 @@ Rest tokens:\n${nonprofitableCoins
         )}$ ${profitETH ? `${escape(profitETH.value.toFixed(3))}ETH` : ''}`
     )
     .join('\n')}${
-    nonprofitableCoinsWithLessThan300DollarsLost.length > 0
-      ? `\nCoins with less than 300$ loss \\( Total of ${escape(
+    nonprofitableCoinsWithLessThan350DollarsLost.length > 0
+      ? `\nCoins with less than 350$ loss \\( Total of ${escape(
           lost.toFixed(0)
         )}$ \\):
-${nonprofitableCoinsWithLessThan300DollarsLost
-  .map(({ token, symbol }) => hyperLink(etherscanAddressLink(token), symbol))
-  .join('\\, ')}`
+${renderInlineTokens(nonprofitableCoinsWithLessThan350DollarsLost)}`
       : ''
   }`;
 }

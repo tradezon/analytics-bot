@@ -13,11 +13,13 @@ export class Wallet {
   private tokens = new Map<string, bigint>();
 
   deposit(token: string, value: bigint) {
+    if (value === 0n) return;
     const entry = this.tokens.get(token) || 0n;
     this.tokens.set(token, entry + value);
   }
 
-  hasBalance(token: string, value: bigint) {
+  hasBalance(token: string, value: bigint): boolean {
+    if (value === 0n) return true;
     const entry = this.tokens.get(token);
     return entry ? entry >= value : false;
   }
@@ -27,6 +29,7 @@ export class Wallet {
   }
 
   withdraw(token: string, value: bigint) {
+    if (value === 0n) return;
     const entry = this.tokens.get(token) || 0n;
     this.tokens.set(token, entry - value);
   }

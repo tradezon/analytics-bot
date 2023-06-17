@@ -46,7 +46,7 @@ export class TokenHistory {
     );
   }
 
-  getProfitETH(): { value: number; x: string } | false {
+  getProfitETH(): { value: number; x?: string } | false {
     if (
       this._ETH === 0n ||
       this._DAI !== 0n ||
@@ -56,7 +56,10 @@ export class TokenHistory {
       return false;
     return {
       value: Number(formatEther(this._ETH)),
-      x: (1.0 + Number(this._ETH) / Number(this._inETH)).toFixed(1)
+      x:
+        this._ETH < 0n
+          ? undefined
+          : (1.0 + Number(this._ETH) / Number(this._inETH)).toFixed(1)
     };
   }
 

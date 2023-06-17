@@ -5,6 +5,7 @@ import type { Report } from '../types';
 import type { Wallet } from './wallet';
 import type { History } from './history';
 import type { PriceOracle } from './price-oracle';
+import { DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS, WETH_ADDRESS } from './const';
 
 export async function createReport(
   provider: JsonRpcProvider | WebSocketProvider,
@@ -34,10 +35,6 @@ export async function createReport(
           return;
         }
         const balance = walletState.balance(tokenHistory.token);
-        if (balance > 0n) {
-          res();
-          return;
-        }
         // TODO some tokens could be left, should be taken from deposit
         const profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
         const profitETH = tokenHistory.getProfitETH();
@@ -49,20 +46,30 @@ export async function createReport(
           profitUSD,
           profitETH: profitETH || undefined
         };
-        report.tokens.push(result);
-        // if (balance > 0n) {
-        //   const priceRate = await priceOracle(tokenHistory.token, t.decimals);
-        //   const currentBalanceUSD =(Number(formatUnits(priceRate, 18)) * usdToEthPrice /* usd per token */) *
-        //     Number(formatUnits(balance, t.decimals));
-        //   result.profitUSD += currentBalanceUSD;
-        //   report.pnlUSD += currentBalanceUSD;
-        // }
+        if (balance > 0n) {
+          // this token is left in wallet
+          const priceRate = await priceOracle(tokenHistory.token, t.decimals);
+          const priceUSD = Number(formatUnits(priceRate, 18)) * usdToEthPrice;
+          const currentBalanceUSD =
+            priceUSD * Number(formatUnits(balance, t.decimals));
+          result.profitUSD += currentBalanceUSD;
+          // it is possible that estimated price is wrong for this token,
+          // so we should remove it from wallet entirely
+          walletState.withdraw(WETH_ADDRESS, tokenHistory.eth);
+          walletState.withdraw(USDC_ADDRESS, tokenHistory.usdc);
+          walletState.withdraw(USDT_ADDRESS, tokenHistory.usdt);
+          walletState.withdraw(DAI_ADDRESS, tokenHistory.dai);
+          report.wallet.push(result);
+        } else {
+          report.tokens.push(result);
+        }
         res();
       })
     );
   }
   await Promise.all(promises);
   report.tokens.sort((a, b) => b.profitUSD - a.profitUSD);
+  report.wallet.sort((a, b) => b.profitUSD - a.profitUSD);
   report.pnlUSD += walletState.getStablesProfit(usdToEthPrice);
   report.winrate = Math.round(
     (wins / Array.from(history.tokens).length) * 1000
