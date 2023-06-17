@@ -139,7 +139,9 @@ From ${escape(formatDate(report.period[0]))} to ${escape(
           profitUSD.toFixed(0)
         )}$ ${
           profitETH
-            ? `${escape(profitETH.value.toFixed(2))}ETH ${renderX(profitETH.x)}`
+            ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
+                profitETH.x
+              )}`
             : ''
         }`
     )
@@ -150,21 +152,21 @@ ${
     ? `*Current tokens in wallet*: \\( not in PNL \\)\n${walletTokens
         .map(
           ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
-            `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
+            `${
+              balance
+                ? `${escape(
+                    Number(formatUnits(balance.value, decimals)).toFixed(0)
+                  )}`
+                : ''
+            }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
               profitUSD.toFixed(0)
             )}$ ${
               profitUSD >= 300_000
                 ? '⚠️ __price estimation maybe wrong__'
                 : profitETH
-                ? `${escape(profitETH.value.toFixed(2))}ETH ${renderX(
+                ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
                     profitETH.x
                   )}`
-                : ''
-            } ${
-              balance
-                ? `${escape(
-                    Number(formatUnits(balance.value, decimals)).toFixed(1)
-                  )} tokens`
                 : ''
             }`
         )
@@ -184,7 +186,7 @@ Rest tokens:\n${nonprofitableCoins
       ({ token, symbol, profitUSD, profitETH }) =>
         `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
           profitUSD.toFixed(0)
-        )}$ ${profitETH ? `${escape(profitETH.value.toFixed(3))}ETH` : ''}`
+        )}$ ${profitETH ? `\\| ${escape(profitETH.value.toFixed(3))}ETH` : ''}`
     )
     .join('\n')}${
     nonprofitableCoinsWithLessThan350DollarsLost.length > 0
