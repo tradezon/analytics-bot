@@ -9,6 +9,7 @@
   "dependencies": {
     "@tradezon/txswaps": "^0.9.3",
     "better-sqlite3": "^8.4.0",
+    "dayjs": "^1.11.8",
     "ethers": "^6.6.0",
     "etherscan-api": "^10.3.0",
     "invariant": "^2.2.4",

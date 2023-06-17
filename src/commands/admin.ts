@@ -12,9 +12,7 @@ export enum Lang {
 
 export enum Tier {
   GOD_MODE = 0,
-  RESERVED1 = 1,
-  RESERVED2 = 2,
-  TIER0 = 3
+  TIER0 = 5
 }
 
 export interface User {

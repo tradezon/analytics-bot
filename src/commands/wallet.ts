@@ -5,7 +5,7 @@ import { getAddress, JsonRpcProvider, WebSocketProvider } from 'ethers';
 import type { BaseScene } from 'telegraf/src/scenes/base';
 import { getAllSwaps } from '../transactions';
 import { AnalyticsEngine } from '../analytics';
-import { escape, reportToMarkdownV2 } from '../utils/telegram';
+import { reportToMarkdownV2 } from '../utils/telegram';
 
 export function wallet(
   bot: Telegraf,
@@ -33,20 +33,31 @@ export function wallet(
         } catch (e: any) {
           console.log(e.message || e.toString());
           ctx.replyWithHTML('<b>Wrong wallet address</b> ❌');
+          return;
         }
         try {
+          const now = Date.now();
+          const blockNumber = getBlockNumber();
           const swaps = await getAllSwaps(
             addr!,
             etherscanApi,
             provider,
-            getBlockNumber()
+            blockNumber
           );
           if (!swaps) {
             ctx.replyWithHTML('<b>Execution error.</b>Try later.. ❌');
             return ctx.scene.leave();
           }
 
-          const report = await analyticEngine.execute(addr!, swaps);
+          const block = await provider.getBlock(blockNumber);
+          if (!block) {
+            throw new Error('no block data');
+          }
+          const report = await analyticEngine.execute(
+            addr!,
+            [block.timestamp * 1000, now],
+            swaps
+          );
           ctx.replyWithMarkdownV2(reportToMarkdownV2(report), {
             disable_web_page_preview: true
           });

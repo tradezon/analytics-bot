@@ -22,7 +22,11 @@ export class AnalyticsEngine {
     this.priceOracle = createPriceOracle(provider);
   }
 
-  async execute(wallet: string, swaps: TransactionSwap[]): Promise<Report> {
+  async execute(
+    wallet: string,
+    period: [number, number],
+    swaps: TransactionSwap[]
+  ): Promise<Report> {
     const walletState = new Wallet();
     const history = new History();
 
@@ -81,6 +85,7 @@ export class AnalyticsEngine {
       this.provider,
       this.priceOracle,
       wallet,
+      period,
       walletState,
       history,
       ethUSD

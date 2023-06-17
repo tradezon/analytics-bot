@@ -11,12 +11,15 @@ export async function createReport(
   provider: JsonRpcProvider | WebSocketProvider,
   priceOracle: PriceOracle,
   wallet: string,
+  period: [number, number],
   walletState: Wallet,
   history: History,
   usdToEthPrice: number
 ): Promise<Report> {
   let wins = 0;
   const report: Report = {
+    id: '',
+    period,
     address: wallet,
     tokens: [],
     pnlUSD: 0,
@@ -71,9 +74,8 @@ export async function createReport(
   report.tokens.sort((a, b) => b.profitUSD - a.profitUSD);
   report.wallet.sort((a, b) => b.profitUSD - a.profitUSD);
   report.pnlUSD += walletState.getStablesProfit(usdToEthPrice);
-  report.winrate = Math.round(
-    (wins / Array.from(history.tokens).length) * 1000
-  );
+  const length = Array.from(history.tokens).length;
+  report.winrate = length === 0 ? 1 : Math.round((wins / length) * 1000);
 
   return report;
 }

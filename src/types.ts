@@ -1,5 +1,3 @@
-import type { TokenData } from './utils/get-erc20-token-data';
-
 export interface TokenInfo {
   token: string;
   symbol: string;

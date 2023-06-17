@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import type { Report, TokenInfo } from '../types';
 
 export const escape = (str: any) =>
@@ -71,6 +72,10 @@ function divideTokensWithProfitThreshold(
   return idx === -1 ? [tokens, []] : [tokens.slice(0, idx), tokens.slice(idx)];
 }
 
+function formatDate(date: number) {
+  return dayjs(date).format('DD.MM.YYYY');
+}
+
 export function reportToMarkdownV2(report: Report) {
   const allTokensLength = report.tokens.length;
   let [profitableCoins, nonprofitableCoins] = divideTokensWithLossThreshold(
@@ -97,7 +102,7 @@ export function reportToMarkdownV2(report: Report) {
   let nonprofitableCoinsWithLessThan350DollarsLost: TokenInfo[] = [];
   if (allTokensLength > 18) {
     [nonprofitableCoinsWithLessThan350DollarsLost, nonprofitableCoins] =
-      divideTokensWithProfitThreshold(nonprofitableCoins, -349);
+      divideTokensWithLossThreshold(nonprofitableCoins, -349);
     for (const token of nonprofitableCoinsWithLessThan350DollarsLost) {
       lost += token.profitUSD;
     }
@@ -119,6 +124,9 @@ export function reportToMarkdownV2(report: Report) {
   //#endregion
 
   return `Report for address ${address(report.address)}
+From ${escape(formatDate(report.period[0]))} to ${escape(
+    formatDate(report.period[1])
+  )}
 *PNL ${escape(report.pnlUSD.toFixed(0))}$* \\| *Winrate ${escape(
     report.winrate / 1000
   )}*
