@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import type { Report, TokenInfo } from '../types';
+import { formatUnits } from 'ethers';
 
 export const escape = (str: any) =>
   str
@@ -148,23 +149,33 @@ ${
   walletTokens.length > 0
     ? `*Current tokens in wallet*: \\( not in PNL \\)\n${walletTokens
         .map(
-          ({ token, symbol, profitUSD, profitETH }) =>
+          ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
             `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
               profitUSD.toFixed(0)
             )}$ ${
               profitUSD >= 300_000
-                ? '⚠️ __price estimation could be wrong__'
+                ? '⚠️ __price estimation maybe wrong__'
                 : profitETH
                 ? `${escape(profitETH.value.toFixed(2))}ETH ${renderX(
                     profitETH.x
                   )}`
                 : ''
+            } ${
+              balance
+                ? `${Number(formatUnits(balance.value, decimals)).toFixed(
+                    1
+                  )} tokens`
+                : ''
             }`
         )
-        .join('\n')}\nCoins with more than 350$ loss \\( Total of ${escape(
-        currentLossing.toFixed(0)
-      )}$ \\):
+        .join('\n')}${
+        currentTokensThatLossingLessThan350Dollars.length > 0
+          ? `\nCoins with more than 350$ loss \\( Total of ${escape(
+              currentLossing.toFixed(0)
+            )}$ \\):
 ${renderInlineTokens(currentTokensThatLossingLessThan350Dollars)}`
+          : ''
+      }`
     : ''
 }
 

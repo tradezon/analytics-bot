@@ -1,7 +1,7 @@
 import { formatUnits } from 'ethers';
 import type { JsonRpcProvider, WebSocketProvider } from 'ethers';
 import { getErc20TokenData } from '../utils/get-erc20-token-data';
-import type { Report } from '../types';
+import type { Report, TokenInfo } from '../types';
 import type { Wallet } from './wallet';
 import type { History } from './history';
 import type { PriceOracle } from './price-oracle';
@@ -42,20 +42,28 @@ export async function createReport(
         const profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
         const profitETH = tokenHistory.getProfitETH();
         if (profitUSD >= 0) wins++;
-        const result = {
+        const result: TokenInfo = {
           token: tokenHistory.token,
-          balance,
           symbol: t.symbol,
+          decimals: t.decimals,
           profitUSD,
           profitETH: profitETH || undefined
         };
         if (balance > 0n) {
           // this token is left in wallet
           const priceRate = await priceOracle(tokenHistory.token, t.decimals);
-          const priceUSD = Number(formatUnits(priceRate, 18)) * usdToEthPrice;
-          const currentBalanceUSD =
-            priceUSD * Number(formatUnits(balance, t.decimals));
+          const priceETH = Number(formatUnits(priceRate, 18));
+          const priceUSD = priceETH * usdToEthPrice;
+          const tokensBalance = Number(formatUnits(balance, t.decimals));
+          const currentBalanceUSD = priceUSD * tokensBalance;
           result.profitUSD += currentBalanceUSD;
+          if (result.profitETH) {
+            result.profitETH.value += priceETH * tokensBalance;
+          }
+          result.balance = {
+            value: balance,
+            usd: currentBalanceUSD
+          };
           // it is possible that estimated price is wrong for this token,
           // so we should remove it from wallet entirely
           walletState.withdraw(WETH_ADDRESS, tokenHistory.eth);

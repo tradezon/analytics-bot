@@ -55,6 +55,7 @@ export async function getAllSwaps(
     );
   }
 
+  debugger;
   const swaps: TransactionSwap[] = [];
   for (const res of await Promise.all(promises)) {
     if (!res) continue;
