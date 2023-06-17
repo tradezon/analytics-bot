@@ -1,0 +1,347 @@
+[
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0x6FF2241756549B5816A177659E766EAf14B34429"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "194614281781666847512692"
+    ],
+    "amountOut": [
+      "131388123010984534"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x32f044dA25218598D4238A4fc6826Ac4ebb97e9E"
+    ],
+    "amountIn": [
+      "200000000000000000"
+    ],
+    "amountOut": [
+      "94262208923696293625790544"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0x32f044dA25218598D4238A4fc6826Ac4ebb97e9E"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "94262208923696293625790544"
+    ],
+    "amountOut": [
+      "108378770292050421"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x7fB566472Ee3499510160dF36Be790916c75BE15"
+    ],
+    "amountIn": [
+      "100000000000000000"
+    ],
+    "amountOut": [
+      "542294423736655589232533"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0x7fB566472Ee3499510160dF36Be790916c75BE15"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "542294423736655589232533"
+    ],
+    "amountOut": [
+      "90924281269001903"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x8dA0e5B872aECc1D53633f540AE49A51D59007c9"
+    ],
+    "amountIn": [
+      "200000000000000000"
+    ],
+    "amountOut": [
+      "4977904142494115852724"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x8dA0e5B872aECc1D53633f540AE49A51D59007c9"
+    ],
+    "amountIn": [
+      "200000000000000000"
+    ],
+    "amountOut": [
+      "5918994519836514285924"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0x8dA0e5B872aECc1D53633f540AE49A51D59007c9"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "10896898662330630138648"
+    ],
+    "amountOut": [
+      "180206374468726514"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x8dA0e5B872aECc1D53633f540AE49A51D59007c9"
+    ],
+    "amountIn": [
+      "200000000000000000"
+    ],
+    "amountOut": [
+      "10580161975300848375696"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x8dA0e5B872aECc1D53633f540AE49A51D59007c9"
+    ],
+    "amountIn": [
+      "150000000000000000"
+    ],
+    "amountOut": [
+      "11318430456133727415946"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x3Bf954e809620bF2f1Fcb667F1c7D2D2E94350d1"
+    ],
+    "amountIn": [
+      "200000000000000000"
+    ],
+    "amountOut": [
+      "4295564186856343"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0xb23d80f5FefcDDaa212212F028021B41DEd428CF"
+    ],
+    "amountIn": [
+      "300000000000000000"
+    ],
+    "amountOut": [
+      "379537344872483699861"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0x3Bf954e809620bF2f1Fcb667F1c7D2D2E94350d1"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "4295564186856343"
+    ],
+    "amountOut": [
+      "180275247333281757"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0x8dA0e5B872aECc1D53633f540AE49A51D59007c9"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "21898592431434575791642"
+    ],
+    "amountOut": [
+      "556430764942890200"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x32f044dA25218598D4238A4fc6826Ac4ebb97e9E"
+    ],
+    "amountIn": [
+      "100000000000000000"
+    ],
+    "amountOut": [
+      "61872612579313044005099461"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x78a0A62Fba6Fb21A83FE8a3433d44C73a4017A6f"
+    ],
+    "amountIn": [
+      "100000000000000000"
+    ],
+    "amountOut": [
+      "7695271273228241382586"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0x78a0A62Fba6Fb21A83FE8a3433d44C73a4017A6f"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "7695271273228241382586"
+    ],
+    "amountOut": [
+      "85345713705701268"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x32f044dA25218598D4238A4fc6826Ac4ebb97e9E"
+    ],
+    "amountIn": [
+      "100000000000000000"
+    ],
+    "amountOut": [
+      "93879395977154939866300349"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0x32f044dA25218598D4238A4fc6826Ac4ebb97e9E"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "155752008556467983871399810"
+    ],
+    "amountOut": [
+      "182352112483432481"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0xb23d80f5FefcDDaa212212F028021B41DEd428CF"
+    ],
+    "amountIn": [
+      "400000000000000000"
+    ],
+    "amountOut": [
+      "507205491691502269966"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xb23d80f5FefcDDaa212212F028021B41DEd428CF"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "886742836563985969827"
+    ],
+    "amountOut": [
+      "731202798012271540"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "tokenOut": [
+      "0x78a0A62Fba6Fb21A83FE8a3433d44C73a4017A6f"
+    ],
+    "amountIn": [
+      "100000000000000000"
+    ],
+    "amountOut": [
+      "7676672444565399076694"
+    ]
+  },
+  {
+    "wallet": "0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408",
+    "tokenIn": [
+      "0x78a0A62Fba6Fb21A83FE8a3433d44C73a4017A6f"
+    ],
+    "tokenOut": [
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    ],
+    "amountIn": [
+      "7676672444565399076694"
+    ],
+    "amountOut": [
+      "100010202729666119"
+    ]
+  }
+]

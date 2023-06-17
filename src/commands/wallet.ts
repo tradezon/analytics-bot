@@ -25,12 +25,18 @@ export function wallet(
     }) as any,
     async (ctx) => {
       if ((ctx.message as any)?.text) {
+        let addr: string;
         try {
-          const addr = getAddress((ctx.message as any).text);
+          addr = getAddress((ctx.message as any).text);
           await provider.getBalance(addr);
           ctx.reply(`Preparing report for ${addr}... ⌛`);
+        } catch (e: any) {
+          console.log(e.message || e.toString());
+          ctx.replyWithHTML('<b>Wrong wallet address</b> ❌');
+        }
+        try {
           const swaps = await getAllSwaps(
-            addr,
+            addr!,
             etherscanApi,
             provider,
             getBlockNumber()
@@ -40,13 +46,14 @@ export function wallet(
             return ctx.scene.leave();
           }
 
-          const report = await analyticEngine.execute(addr, swaps);
+          const report = await analyticEngine.execute(addr!, swaps);
           ctx.replyWithMarkdownV2(reportToMarkdownV2(report), {
             disable_web_page_preview: true
           });
           return ctx.scene.leave();
-        } catch {
-          ctx.replyWithHTML('<b>Wrong wallet address</b> ❌');
+        } catch (e: any) {
+          console.log(e.message || e.toString());
+          ctx.replyWithHTML('<b>Execution error.</b>Try later.. ❌');
         }
       } else {
         ctx.replyWithHTML('<b>Type wallet address</b> 🖊️');

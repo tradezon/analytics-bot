@@ -1,3 +1,5 @@
+import type { TokenData } from './utils/get-erc20-token-data';
+
 export interface Report {
   tokens: Array<{
     token: string;
@@ -8,5 +10,5 @@ export interface Report {
   winrate: number;
   pnlUSD: number;
   address: string;
-  wallet: Array<{ token: string; balance: bigint }>;
+  wallet: Array<{ token: TokenData; profitUSD: number }>;
 }
