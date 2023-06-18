@@ -63,6 +63,10 @@ export class TokenHistory {
     };
   }
 
+  currentTokensBalanceETH(eth: bigint) {
+    this._ETH += eth;
+  }
+
   push(swap: TransactionSwap) {
     this._swaps.push(swap);
     const len = swap.tokenIn.length;

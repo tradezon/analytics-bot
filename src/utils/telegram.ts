@@ -80,6 +80,10 @@ function formatDate(date: number) {
   return dayjs(date).format('DD.MM.YYYY');
 }
 
+function sum(tokens: TokenInfo[]): number {
+  return tokens.reduce((acc, t) => acc + t.profitUSD, 0 as number);
+}
+
 export function renderShort(report: Report): [string, number] {
   let loss = 0;
   let [profitableCoins, lossCoins] = divideTokensWithLossThreshold(
@@ -102,6 +106,9 @@ export function renderShort(report: Report): [string, number] {
   });
   for (const coin of lossCoins) loss += coin.profitUSD;
 
+  // TODO fix PNL
+  let pnl = sum(profitableCoins) + loss;
+
   //#region current balance
   let currentLossing = 0;
   let [profitableWalletCoins, lossWalletCoins] = divideTokensWithLossThreshold(
@@ -112,60 +119,65 @@ export function renderShort(report: Report): [string, number] {
   //#endregion
 
   return [
-    `${header(report)}
-
-📈 *Profitable coins*:\n${profitableCoins
-      .map(
-        ({ token, symbol, profitUSD, profitETH }) =>
-          `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
-            profitUSD.toFixed(0)
-          )}$ ${
-            profitETH
-              ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
-                  profitETH.x
-                )}`
-              : ''
-          }`
-      )
-      .join('\n')}
+    `${header(report, pnl)}
 ${
-  report.wallet.length > 0
-    ? `\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${profitableWalletCoins
+  profitableCoins.length > 0
+    ? `\n📈 *Profitable coins*:\n${profitableCoins
         .map(
-          ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
-            `${
-              balance
-                ? `${escape(
-                    Number(formatUnits(balance.value, decimals)).toFixed(0)
-                  )}`
-                : ''
-            }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
+          ({ token, symbol, profitUSD, profitETH }) =>
+            `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
               profitUSD.toFixed(0)
             )}$ ${
-              profitUSD >= 300_000
-                ? '⚠️ __price estimation maybe wrong__'
-                : profitETH
+              profitETH
                 ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
                     profitETH.x
                   )}`
                 : ''
             }`
         )
-        .join('\n')}\nRest ${escape(currentLossing.toFixed(0))}$`
+        .join('\n')}`
     : ''
-}`,
+}${
+      report.wallet.length > 0
+        ? `\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${profitableWalletCoins
+            .map(
+              ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
+                `${
+                  balance
+                    ? `${escape(
+                        Number(formatUnits(balance.value, decimals)).toFixed(0)
+                      )}`
+                    : ''
+                }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
+                  profitUSD.toFixed(0)
+                )}$ ${
+                  profitUSD >= 300_000
+                    ? '⚠️ __price estimation maybe wrong__'
+                    : profitETH
+                    ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
+                        profitETH.x
+                      )}`
+                    : ''
+                }`
+            )
+            .join('\n')}\nRest ${escape(currentLossing.toFixed(0))}$`
+        : ''
+    }`,
     -loss
   ];
 }
 
-function header(report: Report) {
+function header(report: Report, pnl?: number) {
   return `Report for address ${address(report.address)}
 From ${escape(formatDate(report.period[0]))} to ${escape(
     formatDate(report.period[1])
-  )}
-*PNL ${escape(report.pnlUSD.toFixed(0))}$* \\| *Winrate ${escape(
-    report.winrate / 1000
-  )}*`;
+  )}${
+    pnl
+      ? `\n*PNL ${escape(pnl.toFixed(0))}$* \\| *Winrate ${escape(
+          report.winrate / 1000
+        )}*`
+      : ''
+  }`;
 }
 
 export function renderLosses(report: Report) {

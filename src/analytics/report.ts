@@ -1,4 +1,4 @@
-import { formatUnits } from 'ethers';
+import { formatUnits, parseEther } from 'ethers';
 import type { JsonRpcProvider, WebSocketProvider } from 'ethers';
 import { customAlphabet } from 'nanoid';
 import { getErc20TokenData } from '../utils/get-erc20-token-data';
@@ -43,8 +43,8 @@ export async function createReport(
         const balance = walletState.balance(tokenHistory.token);
         // TODO some tokens could be left, should be taken from deposit
         const profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
-        const profitETH = tokenHistory.getProfitETH();
         if (profitUSD >= 0) wins++;
+        const profitETH = tokenHistory.getProfitETH();
         const result: TokenInfo = {
           token: tokenHistory.token,
           symbol: t.symbol,
@@ -55,24 +55,37 @@ export async function createReport(
         if (balance > 0n) {
           // this token is left in wallet
           const priceRate = await priceOracle(tokenHistory.token, t.decimals);
-          const priceETH = Number(formatUnits(priceRate, 18));
-          const priceUSD = priceETH * usdToEthPrice;
-          const tokensBalance = Number(formatUnits(balance, t.decimals));
-          const currentBalanceUSD = priceUSD * tokensBalance;
-          result.profitUSD += currentBalanceUSD;
-          if (result.profitETH) {
-            result.profitETH.value += priceETH * tokensBalance;
-          }
-          result.balance = {
-            value: balance,
-            usd: currentBalanceUSD
-          };
+
           // it is possible that estimated price is wrong for this token,
           // so we should remove it from wallet entirely
           walletState.withdraw(WETH_ADDRESS, tokenHistory.eth);
           walletState.withdraw(USDC_ADDRESS, tokenHistory.usdc);
           walletState.withdraw(USDT_ADDRESS, tokenHistory.usdt);
           walletState.withdraw(DAI_ADDRESS, tokenHistory.dai);
+
+          const priceETH = Number(formatUnits(priceRate, 18));
+          const tokensBalance = Number(formatUnits(balance, t.decimals));
+          const priceUSD = priceETH * usdToEthPrice;
+          const currentBalanceUSD = priceUSD * tokensBalance;
+          if (result.profitETH) {
+            try {
+              const ethBalance = priceETH * tokensBalance;
+              tokenHistory.currentTokensBalanceETH(
+                parseEther(String(ethBalance))
+              );
+              result.profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
+              result.profitETH = tokenHistory.getProfitETH() || undefined;
+            } catch {
+              result.profitUSD += currentBalanceUSD;
+              // TODO fix calculation of low liquidity
+            }
+          } else {
+            result.profitUSD += currentBalanceUSD;
+          }
+          result.balance = {
+            value: balance,
+            usd: currentBalanceUSD
+          };
           report.wallet.push(result);
         } else {
           report.tokens.push(result);
