@@ -54,6 +54,7 @@ export class AnalyticsEngine {
       }
     };
     for (const swap of swaps) {
+      if (swap.tokenIn.length !== swap.tokenOut.length) continue;
       history.push(swap);
       const len = swap.tokenIn.length;
       for (let i = 0; i < len; i++) {

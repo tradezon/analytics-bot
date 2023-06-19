@@ -1,7 +1,7 @@
 import { formatUnits, parseEther } from 'ethers';
 import type { JsonRpcProvider, WebSocketProvider } from 'ethers';
 import { customAlphabet } from 'nanoid';
-import { getErc20TokenData } from '../utils/get-erc20-token-data';
+import { getErc20TokenData, TokenData } from '../utils/get-erc20-token-data';
 import type { Report, TokenInfo } from '../types';
 import type { Wallet } from './wallet';
 import type { History } from './history';
@@ -35,7 +35,14 @@ export async function createReport(
   for (const tokenHistory of history.tokens) {
     promises.push(
       new Promise(async (res) => {
-        const t = await getErc20TokenData(tokenHistory.token, provider);
+        let t: TokenData;
+        try {
+          t = await getErc20TokenData(tokenHistory.token, provider);
+        } catch (e: any) {
+          console.log(e.toString());
+          res();
+          return;
+        }
         if (!t) {
           res();
           return;
@@ -54,7 +61,14 @@ export async function createReport(
         };
         if (balance > 0n) {
           // this token is left in wallet
-          const priceRate = await priceOracle(tokenHistory.token, t.decimals);
+          let priceRate: bigint;
+          try {
+            priceRate = await priceOracle(tokenHistory.token, t.decimals);
+          } catch (e: any) {
+            console.log(e.toString());
+            res();
+            return;
+          }
 
           // it is possible that estimated price is wrong for this token,
           // so we should remove it from wallet entirely

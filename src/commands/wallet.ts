@@ -64,7 +64,8 @@ export function wallet(
           await provider.getBalance(addr);
           ctx.reply(`Preparing report for ${addr}... ⌛`);
         } catch (e: any) {
-          console.log(e.message || e.toString());
+          console.log(e.toString());
+          console.log(e.stack);
           ctx.replyWithHTML('<b>Wrong wallet address</b> ❌');
           return;
         }
@@ -99,7 +100,8 @@ export function wallet(
           replyWithShortView(ctx, report);
           return ctx.scene.leave();
         } catch (e: any) {
-          console.log(e.message || e.toString());
+          console.log(e.toString());
+          console.log(e.stack);
           ctx.replyWithHTML('<b>Execution error.</b>Try later.. ❌');
         }
       } else {
