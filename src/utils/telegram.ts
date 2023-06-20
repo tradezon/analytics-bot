@@ -151,9 +151,7 @@ ${
                 }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
                   profitUSD.toFixed(0)
                 )}$ ${
-                  profitUSD >= 300_000
-                    ? '⚠️ __price estimation maybe wrong__'
-                    : profitETH
+                  profitETH
                     ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
                         profitETH.x
                       )}`
@@ -217,9 +215,7 @@ export function renderCurrentTokens(report: Report) {
         }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
           profitUSD.toFixed(0)
         )}$ ${
-          profitUSD >= 300_000
-            ? '⚠️ __price estimation maybe wrong__'
-            : profitETH
+          profitETH
             ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
                 profitETH.x
               )}`

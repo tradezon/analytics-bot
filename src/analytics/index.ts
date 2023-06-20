@@ -54,21 +54,18 @@ export class AnalyticsEngine {
       }
     };
     for (const swap of swaps) {
-      if (swap.tokenIn.length !== swap.tokenOut.length) continue;
+      if (swap.tokenIn.length !== 1 || swap.tokenOut.length !== 1) continue;
       history.push(swap);
-      const len = swap.tokenIn.length;
-      for (let i = 0; i < len; i++) {
-        if (
-          !STABLES.has(swap.tokenIn[i]) &&
-          !walletState.hasBalance(swap.tokenIn[i], swap.amountIn[i])
-        ) {
-          bannedTokens.add(swap.tokenIn[i]);
-          const tokenHistory = history.pop(swap.tokenIn[i]);
-          if (tokenHistory) withdrawFromHistory(tokenHistory);
-        } else {
-          walletState.withdraw(swap.tokenIn[i], swap.amountIn[i]);
-          walletState.deposit(swap.tokenOut[i], swap.amountOut[i]);
-        }
+      if (
+        !STABLES.has(swap.tokenIn[0]) &&
+        !walletState.hasBalance(swap.tokenIn[0], swap.amountIn[0])
+      ) {
+        bannedTokens.add(swap.tokenIn[0]);
+        const tokenHistory = history.pop(swap.tokenIn[0]);
+        if (tokenHistory) withdrawFromHistory(tokenHistory);
+      } else {
+        walletState.withdraw(swap.tokenIn[0], swap.amountIn[0]);
+        walletState.deposit(swap.tokenOut[0], swap.amountOut[0]);
       }
     }
 

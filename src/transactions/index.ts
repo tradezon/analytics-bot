@@ -14,14 +14,25 @@ export async function getAllSwaps(
   provider: JsonRpcProvider | WebSocketProvider,
   blockNumber: number
 ): Promise<TransactionSwap[] | null> {
-  const response = await etherscanApi.account.txlist(
-    wallet,
-    blockNumber,
-    'latest',
-    1,
-    4000
-  );
-  const txs = response.result;
+  let txs = [];
+  try {
+    const response = await etherscanApi.account.txlist(
+      wallet,
+      blockNumber,
+      'latest',
+      1,
+      4000
+    );
+    txs = response.result;
+  } catch (e) {
+    if (e.toString() !== 'No transactions found') {
+      console.log(e.message || e.toString());
+      console.log(e.stack);
+      return null;
+    } else {
+      return [];
+    }
+  }
   if (!txs || txs.length === 0) return null;
 
   const promises: Promise<null | [TransactionResponse, TransactionReceipt]>[] =
