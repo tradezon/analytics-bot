@@ -24,14 +24,15 @@ export async function getAllSwaps(
   wallet: string,
   etherscanApi: any,
   provider: JsonRpcProvider | WebSocketProvider,
-  blockNumber: number
+  blockStart: number,
+  blockEnd?: number
 ): Promise<AllSwaps | null> {
   let txs = [];
   try {
     const response = await etherscanApi.account.txlist(
       wallet,
-      blockNumber,
-      'latest',
+      blockStart,
+      blockEnd || 'latest',
       1,
       4000
     );
@@ -62,22 +63,24 @@ export async function getAllSwaps(
     filteredTx.push(tx);
   }
 
-  const latestBlock = await provider.getBlock('latest');
-  if (!latestBlock) return null;
+  if (!blockEnd) {
+    const latestBlock = await provider.getBlock('latest');
+    if (!latestBlock) return null;
 
-  // find more transactions if needed for statistic space
-  // TODO optimize this, fetch only new blocks
-  if (
-    latestBlock.number - MAX_BLOCKS_FOR_STATS < blockNumber &&
-    filteredTx.length < MIN_POSSIBLE_SWAPS
-  ) {
-    // dig in a week
-    return getAllSwaps(
-      wallet,
-      etherscanApi,
-      provider,
-      blockNumber - blocksInWeek
-    );
+    // find more transactions if needed for statistic space
+    // TODO optimize this, fetch only new blocks
+    if (
+      latestBlock.number - MAX_BLOCKS_FOR_STATS < blockStart &&
+      filteredTx.length < MIN_POSSIBLE_SWAPS
+    ) {
+      // dig in a week
+      return getAllSwaps(
+        wallet,
+        etherscanApi,
+        provider,
+        blockStart - blocksInWeek
+      );
+    }
   }
 
   for (const tx of filteredTx) {
