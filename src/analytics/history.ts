@@ -57,7 +57,7 @@ export class TokenHistory {
     return {
       value: Number(formatEther(this._ETH)),
       x:
-        this._ETH < 0n
+        this._ETH < 0n || this._inETH === 0n
           ? undefined
           : (1.0 + Number(this._ETH) / Number(this._inETH)).toFixed(1)
     };

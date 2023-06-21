@@ -72,17 +72,17 @@ export function wallet(
         try {
           const now = Date.now();
           const blockNumber = getBlockNumber();
-          const swaps = await getAllSwaps(
+          const allSwaps = await getAllSwaps(
             addr!,
             etherscanApi,
             provider,
             blockNumber
           );
-          if (!swaps) {
+          if (!allSwaps) {
             ctx.replyWithHTML('<b>Execution error.</b>Try later.. ❌');
             return ctx.scene.leave();
           }
-          if (swaps.length === 0) {
+          if (allSwaps.swaps.length === 0) {
             ctx.replyWithHTML('Trade transactions was not found 💸');
             return ctx.scene.leave();
           }
@@ -93,8 +93,8 @@ export function wallet(
           }
           const report = await analyticEngine.execute(
             addr!,
-            [block.timestamp * 1000, now],
-            swaps
+            [allSwaps.start, now],
+            allSwaps.swaps
           );
           reportsCache.set(report.id, report);
           replyWithShortView(ctx, report);

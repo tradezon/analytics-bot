@@ -15,6 +15,7 @@ import { createReport } from './report';
 
 export class AnalyticsEngine {
   private priceOracle: PriceOracle;
+
   constructor(
     private provider: JsonRpcProvider | WebSocketProvider,
     private getETHPrice: () => Promise<string>

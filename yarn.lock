@@ -168,10 +168,10 @@
   resolved "https://registry.npmjs.org/@tootallnate/once/-/once-1.1.2.tgz"
   integrity sha512-RbzJvlNzmRq5c3O09UipeuXno4tA1FE6ikOjxZK0tuxVv3412l64l5t1W5pj4+rJq9vpkm/kwiR07aZXnsKPxw==
 
-"@tradezon/txswaps@^0.9.3":
-  version "0.9.3"
-  resolved "https://registry.yarnpkg.com/@tradezon/txswaps/-/txswaps-0.9.3.tgz#38ff319f91e170fec9f05ca838b52a7942edab93"
-  integrity sha512-UME5iJJlTIXASrmLh4Srtac4/rxyhrZfrWAvhWuphM0kvRtX8vbblRPQHf5ZGLw/wAVcxc8xrwIAJlHr++8iyA==
+"@tradezon/txswaps@^0.9.5":
+  version "0.9.5"
+  resolved "https://registry.yarnpkg.com/@tradezon/txswaps/-/txswaps-0.9.5.tgz#069129823e45a7a7dc013df8ca27732c0ca4b3a3"
+  integrity sha512-I13GIPZ4TZtTym7b6V8+FibbXDpegZTH6Tm9aBLO45yrWBxZIipGyn5XPSPygMyJNQ5sa8J4DEYxo+q11Wa93A==
   dependencies:
     "@uniswap/v2-periphery" "^1.1.0-beta.0"
     "@uniswap/v3-core" "^1.0.1"
