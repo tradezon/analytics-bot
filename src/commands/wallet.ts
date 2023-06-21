@@ -110,16 +110,13 @@ export function wallet(
       try {
         addr = getAddress((ctx.message as any).text);
         await provider.getBalance(addr);
-        ctx.wizard.state.address = addr;
-        ctx.reply(
-          'Select time range:',
-          {
-            ...Markup.inlineKeyboard([
-              Markup.button.callback('Latest 🔎', 'Latest 🔎'),
-              Markup.button.callback('Select period 🚩', 'Select period 🚩')
-            ])
-          }
-        );
+        (ctx.wizard.state as any).address = addr;
+        ctx.reply('Select time range:', {
+          ...Markup.inlineKeyboard([
+            Markup.button.callback('Latest 🔎', 'Latest 🔎'),
+            Markup.button.callback('Select period 🚩', 'Select period 🚩')
+          ])
+        });
         ctx.wizard.next();
       } catch (e: any) {
         console.log(e.toString());
@@ -128,15 +125,15 @@ export function wallet(
       }
     },
     async (ctx) => {
-      if (!ctx.callbackQuery?.data) return ctx.wizard.back();
-      const data = ctx.callbackQuery.data;
+      if (!(ctx.callbackQuery as any)?.data) return ctx.wizard.back();
+      const data = (ctx.callbackQuery as any).data;
       if (data === 'Select period 🚩') {
         ctx.reply(
-          'Enter period in format DD.MM.YYYY DD.MM.YYYY, e.g. 25.01.2022 30.06.2022.\nMaximum range is 3 month.'
+          'Enter period in format DD.MM.YYYY DD.MM.YYYY, e.g. 25.01.2022 30.06.2022\nMaximum range is 3 month.'
         );
         return ctx.wizard.next();
       }
-      const wallet = ctx.wizard.state.address;
+      const wallet = (ctx.wizard.state as any).address;
       if (!wallet) {
         ctx.replyWithHTML('<b>Wallet not found</b> ❌');
         return ctx.scene.leave();
@@ -178,7 +175,7 @@ export function wallet(
       }
       const start = dayjs(startStr, 'DD.MM.YYYY');
       const end = dayjs(endStr, 'DD.MM.YYYY');
-      const wallet = ctx.wizard.state.address;
+      const wallet = (ctx.wizard.state as any).address;
       if (!start.isValid() || !end.isValid()) {
         ctx.replyWithHTML(
           '<b>Wrong format</b>Expected <i>DD.MM.YYYY DD.MM.YYYY</i> ❌'
@@ -192,11 +189,12 @@ export function wallet(
 
       try {
         const [blockStart, blockEnd] = await Promise.all([
-          findBlockByTimestamp(start.unix() * 1000, provider),
-          findBlockByTimestamp(end.unix() * 1000, provider)
+          findBlockByTimestamp(start.unix(), provider),
+          findBlockByTimestamp(end.unix(), provider)
         ]);
         if (!blockStart || !blockEnd) throw new Error('No block found');
         ctx.reply(`Preparing report for ${wallet}... ⌛`);
+        debugger;
         const report = await generateReport(
           etherscanApi,
           provider,

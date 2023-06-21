@@ -15,7 +15,7 @@ async function getBlockTimeStamp(provider: Provider, blockNumber?: number) {
 
 async function _findBlockByTimestamp(
   provider: Provider,
-  timestamp: number,
+  timestampSeconds: number,
   blockStart: number,
   blockEnd?: number
 ): Promise<Block> {
@@ -23,21 +23,21 @@ async function _findBlockByTimestamp(
     getBlockTimeStamp(provider, blockStart),
     getBlockTimeStamp(provider, blockEnd)
   ]);
-  if (timestamp > block1.timestamp) return block1;
-  if (timestamp < block0.timestamp) return block0;
+  if (timestampSeconds > block1.timestamp) return block1;
+  if (timestampSeconds < block0.timestamp) return block0;
   const t0 = block0.timestamp;
   const t1 = block1.timestamp;
   const i0 = blockStart;
   const i1 = block1.number;
   const averageBlockTime = (t1 - t0) / (i1 - i0);
-  const k = (timestamp - t0) / (t1 - t0);
+  const k = (timestampSeconds - t0) / (t1 - t0);
   const expectedMiddleBlockNumber = Math.floor(i0 + k * (i1 - i0));
   const expectedBlock = await getBlockTimeStamp(
     provider,
     expectedMiddleBlockNumber
   );
   const discrepancyInBlocks = Math.floor(
-    (timestamp - expectedBlock.timestamp) / averageBlockTime
+    (timestampSeconds - expectedBlock.timestamp) / averageBlockTime
   );
   const newExpectedMiddle = expectedBlock.number + discrepancyInBlocks;
 
@@ -46,7 +46,7 @@ async function _findBlockByTimestamp(
 
   return _findBlockByTimestamp(
     provider,
-    timestamp,
+    timestampSeconds,
     newExpectedMiddle - r,
     newExpectedMiddle + r
   );

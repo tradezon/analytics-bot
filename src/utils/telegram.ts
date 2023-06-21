@@ -125,7 +125,7 @@ ${
     ? `\n📈 *Profitable coins*:\n${profitableCoins
         .map(
           ({ token, symbol, profitUSD, profitETH }) =>
-            `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
+            `${hyperLink(etherscanAddressLink(token), escape(symbol))} ${escape(
               profitUSD.toFixed(0)
             )}$ ${
               profitETH
@@ -148,9 +148,10 @@ ${
                         Number(formatUnits(balance.value, decimals)).toFixed(0)
                       )}`
                     : ''
-                }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
-                  profitUSD.toFixed(0)
-                )}$ ${
+                }${hyperLink(
+                  etherscanAddressLink(token),
+                  escape(symbol)
+                )} ${escape(profitUSD.toFixed(0))}$ ${
                   profitETH
                     ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
                         profitETH.x
