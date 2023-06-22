@@ -25,6 +25,7 @@ export class TokenHistory {
   private _inUSDT = 0n;
   private _inUSDC = 0n;
   private _inDAI = 0n;
+  private _balanceUSD = 0;
   private _ETH = 0n;
   private _USDT = 0n; // 6 decimals
   private _USDC = 0n; // 6 decimals
@@ -56,7 +57,8 @@ export class TokenHistory {
       Number(formatEther(this._ETH)) * ethPrice +
       Number(formatUnits(this._USDT, 6)) +
       Number(formatUnits(this._USDC, 6)) +
-      Number(formatUnits(this._DAI, 18))
+      Number(formatUnits(this._DAI, 18)) +
+      this._balanceUSD
     );
   }
 
@@ -74,7 +76,8 @@ export class TokenHistory {
       this._inETH !== 0n &&
       this._inDAI === 0n &&
       this._inUSDC === 0n &&
-      this._inUSDT === 0n
+      this._inUSDT === 0n &&
+      this._balanceUSD === 0
     )
       return to100PercentsBigInt(this._inETH, this._ETH);
     return to100Percents(
@@ -88,7 +91,8 @@ export class TokenHistory {
       this._ETH === 0n ||
       this._DAI !== 0n ||
       this._USDC !== 0n ||
-      this._USDT !== 0n
+      this._USDT !== 0n ||
+      this._balanceUSD !== 0
     )
       return false;
     return {
@@ -102,6 +106,10 @@ export class TokenHistory {
 
   currentTokensBalanceETH(eth: bigint) {
     this._ETH += eth;
+  }
+
+  currentTokensBalanceUSD(usd: number) {
+    this._balanceUSD = usd;
   }
 
   depositForETH(val: bigint) {

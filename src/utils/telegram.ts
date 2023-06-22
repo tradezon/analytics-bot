@@ -94,7 +94,7 @@ function sum(tokens: TokenInfo[]): number {
 function mapMetricsTypeToName(type: string, ...values: number[]) {
   switch (type) {
     case WIN_RATE:
-      return `*winrate ${escape(values[0].toFixed(1))}*`;
+      return `*winrate ${escape(values[0].toFixed(2))}*`;
     case PNL_AVERAGE_PERCENT:
       return `*TOKEN PNL ${escape(values[0].toFixed(0))}%*`;
     // case PNL_AVERAGE_PERCENT:
@@ -112,6 +112,7 @@ function mapMetricsTypeToName(type: string, ...values: number[]) {
 
 export function renderShort(report: Report): [string, number] {
   let loss = 0;
+  let profit = 0;
   let [profitableCoins, lossCoins] = divideTokensWithLossThreshold(
     report.tokens,
     0
@@ -131,12 +132,15 @@ export function renderShort(report: Report): [string, number] {
     return b.profitUSD - a.profitUSD;
   });
   for (const coin of lossCoins) loss += coin.profitUSD;
+  for (const coin of profitableCoins) profit += coin.profitUSD;
 
   return [
     `${header(report)}
 ${
   profitableCoins.length > 0
-    ? `\n📈 *Profitable coins*:\n${profitableCoins
+    ? `\n📈 *Profitable coins* \\(${escape(
+        profit.toFixed(0)
+      )}$\\):\n${profitableCoins
         .map(
           ({ token, symbol, profitUSD, profitETH }) =>
             `${hyperLink(etherscanAddressLink(token), escape(symbol))} ${escape(

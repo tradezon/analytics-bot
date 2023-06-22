@@ -58,15 +58,12 @@ export async function createReport(
           return;
         }
         const balance = walletState.balance(tokenHistory.token);
-        const profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
-        winRate.add(Number(profitUSD >= 0));
-        const profitETH = tokenHistory.getProfitETH();
         const result: TokenInfo = {
           token: tokenHistory.token,
           symbol: t.symbol,
           decimals: t.decimals,
-          profitUSD,
-          profitETH: profitETH || undefined,
+          profitUSD: 0,
+          profitETH: undefined,
           inWallet: false,
           lowLiquidity: false
         };
@@ -86,42 +83,20 @@ export async function createReport(
           const tokensBalance = Number(formatUnits(balance, t.decimals));
           const priceUSD = priceETH * usdToEthPrice;
           const currentBalanceUSD = priceUSD * tokensBalance;
+          result.balance = {
+            value: balance,
+            usd: currentBalanceUSD
+          };
 
           if (currentBalanceUSD > 0) {
             try {
               honeypot = await isHoneypot(tokenHistory.token, 30_000);
-              console.log(
-                'Honeypot check for',
-                tokenHistory.token,
-                'result',
-                honeypot
-              );
             } catch (e: any) {
               console.log(e.toString());
               res();
               return;
             }
           }
-
-          if (result.profitETH) {
-            try {
-              const ethBalance = priceETH * tokensBalance;
-              tokenHistory.currentTokensBalanceETH(
-                parseEther(String(ethBalance))
-              );
-              result.profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
-              result.profitETH = tokenHistory.getProfitETH() || undefined;
-            } catch {
-              result.profitUSD += currentBalanceUSD;
-              // TODO fix calculation of low liquidity
-            }
-          } else {
-            result.profitUSD += currentBalanceUSD;
-          }
-          result.balance = {
-            value: balance,
-            usd: currentBalanceUSD
-          };
 
           // TODO handle UNKNOWN
           switch (honeypot) {
@@ -131,36 +106,47 @@ export async function createReport(
                 tokens: []
               };
               report.honeypots.tokens.push(result);
-              result.profitUSD = 0;
-              result.profitETH = undefined;
-              // result.profitUSD = tokenHistory.getInputUSD(usdToEthPrice);
-              // result.profitETH = undefined;
-              // pnlUSD.add(-result.profitUSD);
-              // pnlPercent.add(-100);
-              break;
+              result.profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
+              winRate.add(0);
+              pnlUSD.add(result.profitUSD);
+              pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
+              res();
+              return;
             }
             case HoneypotResult.LOW_LIQUIDITY: {
               result.lowLiquidity = true;
             }
-            default: {
-              pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
-              pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
-              pnlPercentWithoutHoneypots.add(
-                tokenHistory.getProfitInPercent(usdToEthPrice)
-              );
-              report.tokens.push(result);
-              result.inWallet = true;
-              report.tokensInWallet++;
-            }
+            default:
+              break;
           }
-        } else {
-          pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
-          pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
-          pnlPercentWithoutHoneypots.add(
-            tokenHistory.getProfitInPercent(usdToEthPrice)
-          );
-          report.tokens.push(result);
+
+          if (result.profitETH) {
+            try {
+              const ethBalance = priceETH * tokensBalance;
+              tokenHistory.currentTokensBalanceETH(
+                parseEther(String(ethBalance))
+              );
+            } catch {
+              tokenHistory.currentTokensBalanceUSD(currentBalanceUSD);
+            }
+          } else {
+            tokenHistory.currentTokensBalanceUSD(currentBalanceUSD);
+          }
+
+          result.inWallet = true;
+          report.tokensInWallet++;
         }
+
+        result.profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
+        result.profitETH = tokenHistory.getProfitETH() || undefined;
+
+        report.tokens.push(result);
+        winRate.add(Number(result.profitUSD >= 0));
+        pnlUSD.add(result.profitUSD);
+        pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
+        pnlPercentWithoutHoneypots.add(
+          tokenHistory.getProfitInPercent(usdToEthPrice)
+        );
         res();
       })
     );
