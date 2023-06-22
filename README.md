@@ -2,6 +2,5 @@
 
 ## TODOs
 
-- think about multiple tokens swap
-- think about should we count honeypots in pnl
+- think about multiple tokens swap, add more info in bot
 - fix swap detection regarding token taxes
