@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import type { Report, TokenInfo } from '../types';
 import { formatUnits } from 'ethers';
+import { PNL_AVERAGE_PERCENT, PNL_USD, WIN_RATE } from './const';
 
 export const escape = (str: any) =>
   str
@@ -82,6 +83,19 @@ function formatDate(date: number) {
 
 function sum(tokens: TokenInfo[]): number {
   return tokens.reduce((acc, t) => acc + t.profitUSD, 0 as number);
+}
+
+function mapMetricsTypeToName(type: string, value: number) {
+  switch (type) {
+    case WIN_RATE:
+      return `*winrate ${escape(value.toFixed(1))}*`;
+    case PNL_AVERAGE_PERCENT:
+      return `*PNL ${escape(value.toFixed(0))}%*`;
+    case PNL_USD:
+      return `*PNL ${escape(value.toFixed(0))}$*`;
+    default:
+      throw new Error(`Unknown metric ${JSON.stringify(type)}`);
+  }
 }
 
 export function renderShort(report: Report): [string, number] {
@@ -167,16 +181,13 @@ ${
 }
 
 function header(report: Report, pnl?: number) {
+  const metrics = report.metrics
+    .map((m, i) => mapMetricsTypeToName(m, report.metricValues[i]))
+    .join(' \\| ');
   return `Report for address ${address(report.address)}
 From ${escape(formatDate(report.period[0]))} to ${escape(
     formatDate(report.period[1])
-  )}${
-    pnl
-      ? `\n*PNL ${escape(pnl.toFixed(0))}$* \\| *Winrate ${escape(
-          report.winrate / 1000
-        )}*`
-      : ''
-  }`;
+  )}\n${metrics}`;
 }
 
 export function renderLosses(report: Report) {

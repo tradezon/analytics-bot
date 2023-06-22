@@ -8,9 +8,23 @@ import {
   WETH_ADDRESS
 } from './const';
 
+export function to100Percents(in_: number, result: number) {
+  if (in_ === 0) return 0;
+  return Math.round((result / in_) * 100.0);
+}
+
+export function to100PercentsBigInt(in_: bigint, result: bigint) {
+  if (in_ === 0n) return 0;
+  // TODO fix
+  return to100Percents(Number(in_), Number(result));
+}
+
 export class TokenHistory {
   private _swaps: TransactionSwap[] = [];
   private _inETH = 0n;
+  private _inUSDT = 0n;
+  private _inUSDC = 0n;
+  private _inDAI = 0n;
   private _ETH = 0n;
   private _USDT = 0n; // 6 decimals
   private _USDC = 0n; // 6 decimals
@@ -43,6 +57,29 @@ export class TokenHistory {
       Number(formatUnits(this._USDT, 6)) +
       Number(formatUnits(this._USDC, 6)) +
       Number(formatUnits(this._DAI, 18))
+    );
+  }
+
+  protected getInputUSD(ethPrice: number): number {
+    return (
+      Number(formatEther(this._inETH)) * ethPrice +
+      Number(formatUnits(this._inUSDT, 6)) +
+      Number(formatUnits(this._inUSDC, 6)) +
+      Number(formatUnits(this._inDAI, 18))
+    );
+  }
+
+  getProfitInPercent(ethPrice: number): number {
+    if (
+      this._inETH !== 0n &&
+      this._inDAI === 0n &&
+      this._inUSDC === 0n &&
+      this._inUSDT === 0n
+    )
+      return to100PercentsBigInt(this._inETH, this._ETH);
+    return to100Percents(
+      this.getInputUSD(ethPrice),
+      this.getProfitUSD(ethPrice)
     );
   }
 

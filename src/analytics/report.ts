@@ -6,7 +6,9 @@ import type { Report, TokenInfo } from '../types';
 import type { Wallet } from './wallet';
 import type { History } from './history';
 import type { PriceOracle } from './price-oracle';
-import { DAI_ADDRESS, USDC_ADDRESS, USDT_ADDRESS, WETH_ADDRESS } from './const';
+import { Average } from '../utils/metrics/average';
+import { Accumulate } from '../utils/metrics/accumulate';
+import { WIN_RATE, PNL_USD, PNL_AVERAGE_PERCENT } from '../utils/const';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -19,15 +21,17 @@ export async function createReport(
   history: History,
   usdToEthPrice: number
 ): Promise<Report> {
-  let wins = 0;
+  const winRate = new Average(WIN_RATE);
+  const pnlUSD = new Accumulate(PNL_USD);
+  const pnlPercent = new Average(PNL_AVERAGE_PERCENT);
   const report: Report = {
     id: '',
     period,
     address: wallet,
     tokens: [],
-    pnlUSD: 0,
-    winrate: 1000,
-    wallet: []
+    wallet: [],
+    metrics: [],
+    metricValues: []
   };
 
   const promises: Promise<void>[] = [];
@@ -48,9 +52,8 @@ export async function createReport(
           return;
         }
         const balance = walletState.balance(tokenHistory.token);
-        // TODO some tokens could be left, should be taken from deposit
         const profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
-        if (profitUSD >= 0) wins++;
+        winRate.add(Number(profitUSD >= 0));
         const profitETH = tokenHistory.getProfitETH();
         const result: TokenInfo = {
           token: tokenHistory.token,
@@ -69,13 +72,6 @@ export async function createReport(
             res();
             return;
           }
-
-          // it is possible that estimated price is wrong for this token,
-          // so we should remove it from wallet entirely
-          walletState.withdraw(WETH_ADDRESS, tokenHistory.eth);
-          walletState.withdraw(USDC_ADDRESS, tokenHistory.usdc);
-          walletState.withdraw(USDT_ADDRESS, tokenHistory.usdt);
-          walletState.withdraw(DAI_ADDRESS, tokenHistory.dai);
 
           const priceETH = Number(formatUnits(priceRate, 18));
           const tokensBalance = Number(formatUnits(balance, t.decimals));
@@ -102,6 +98,8 @@ export async function createReport(
           };
           report.wallet.push(result);
         } else {
+          pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
+          pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
           report.tokens.push(result);
         }
         res();
@@ -111,9 +109,12 @@ export async function createReport(
   await Promise.all(promises);
   report.tokens.sort((a, b) => b.profitUSD - a.profitUSD);
   report.wallet.sort((a, b) => b.profitUSD - a.profitUSD);
-  report.pnlUSD += walletState.getStablesProfit(usdToEthPrice);
-  const length = Array.from(history.tokens).length;
-  report.winrate = length === 0 ? 1 : Math.round((wins / length) * 1000);
+  report.metrics = [pnlUSD.name, pnlPercent.name, winRate.name];
+  report.metricValues = [
+    pnlUSD.compute(),
+    pnlPercent.compute(),
+    winRate.compute()
+  ];
 
   report.id = nanoid();
   return report;

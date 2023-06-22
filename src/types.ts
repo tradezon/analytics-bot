@@ -11,8 +11,8 @@ export interface Report {
   id: string;
   period: [number, number];
   tokens: Array<TokenInfo>;
-  winrate: number;
-  pnlUSD: number;
   address: string;
   wallet: Array<TokenInfo>;
+  metrics: string[];
+  metricValues: number[];
 }

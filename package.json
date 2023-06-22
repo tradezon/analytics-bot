@@ -3,7 +3,7 @@
   "scripts": {
     "pretty": "prettier --config .prettierrc 'src/**/*.ts'",
     "type": "tsc --noEmit",
-    "build": "esbuild ./src/index.ts --platform=node --bundle --external:sqlite3 --outfile=./dir/build.js",
+    "build": "esbuild ./src/main.ts --platform=node --bundle --external:sqlite3 --outfile=./dir/build.js",
     "test": "jest"
   },
   "dependencies": {

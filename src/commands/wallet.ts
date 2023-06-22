@@ -17,6 +17,8 @@ import {
 import { Report } from '../types';
 import { findBlockByTimestamp } from '../utils/find-block-by-timestamp';
 
+const _3MonthsInSeconds = 3 * 30 * 24 * 60 * 60;
+
 function replyWithShortView(ctx: any, report: Report) {
   const [shortReport, losses] = renderShort(report);
   const buttons: any[] = [];
@@ -48,7 +50,8 @@ async function generateReport(
   analyticEngine: AnalyticsEngine,
   wallet: string,
   blockStart: number,
-  blockEnd?: number
+  blockEnd?: number,
+  period?: [number, number]
 ): Promise<Report | null> {
   let endPeriod: number = 0;
   if (!blockEnd) {
@@ -78,7 +81,7 @@ async function generateReport(
   }
   const report = await analyticEngine.execute(
     wallet,
-    [allSwaps.start, endPeriod],
+    period || [allSwaps.start, endPeriod],
     allSwaps.swaps
   );
   return report;
@@ -193,15 +196,20 @@ export function wallet(
           findBlockByTimestamp(end.unix(), provider)
         ]);
         if (!blockStart || !blockEnd) throw new Error('No block found');
+        if (blockEnd.timestamp - blockStart.timestamp > _3MonthsInSeconds) {
+          ctx.replyWithHTML('<b>Too long range</b>. try one more time ❌');
+          return;
+        }
         ctx.reply(`Preparing report for ${wallet}... ⌛`);
-        debugger;
+
         const report = await generateReport(
           etherscanApi,
           provider,
           analyticEngine,
           wallet,
           blockStart.number,
-          blockEnd.number
+          blockEnd.number,
+          [blockStart.timestamp * 1000, blockEnd.timestamp * 1000]
         );
         if (report) {
           reportsCache.set(report.id, report);
