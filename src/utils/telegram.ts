@@ -103,7 +103,7 @@ function mapMetricsTypeToName(type: string, value: number) {
 export function renderShort(report: Report): [string, number] {
   let loss = 0;
   let [profitableCoins, lossCoins] = divideTokensWithLossThreshold(
-    report.tokens.concat(report.tokensInWallet),
+    report.tokens,
     0
   );
 
@@ -150,8 +150,7 @@ function header(report: Report) {
   const metrics = report.metrics
     .map((m, i) => mapMetricsTypeToName(m, report.metricValues[i]))
     .join(' \\| ');
-  return `Report for address ${address(report.address)}
-From ${escape(formatDate(report.period[0]))} to ${escape(
+  return `Report for address ${address(report.address)} From ${escape(formatDate(report.period[0]))} to ${escape(
     formatDate(report.period[1])
   )}\n${metrics}`;
 }
@@ -181,7 +180,8 @@ export function renderLosses(report: Report) {
 export function renderCurrentTokens(report: Report) {
   return `${header(
     report
-  )}\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${report.tokensInWallet
+  )}\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${report.tokens
+    .filter(t => t.inWallet)
     .map(
       ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
         `${
@@ -239,7 +239,7 @@ export function renderFull(report: Report) {
 
   //#region current balance
   let currentLossing = 0;
-  let walletTokens: TokenInfo[] = report.tokensInWallet;
+  let walletTokens: TokenInfo[] = report.tokens.filter(t => t.inWallet);
   let currentTokensThatLossingLessThan350Dollars: TokenInfo[] = [];
   if (walletTokens.length > 14) {
     [walletTokens, currentTokensThatLossingLessThan350Dollars] =

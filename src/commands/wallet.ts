@@ -30,10 +30,10 @@ function replyWithShortView(ctx: any, report: Report) {
       )
     );
   }
-  if (report.tokensInWallet.length > 0) {
+  if (report.tokensInWallet > 0) {
     buttons.push(
       Markup.button.callback(
-        `Current coins (${report.tokensInWallet.length}) 📊`,
+        `Current coins (${report.tokensInWallet}) 📊`,
         `current_${report.id}`
       )
     );

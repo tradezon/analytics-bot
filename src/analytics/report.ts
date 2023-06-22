@@ -30,7 +30,7 @@ export async function createReport(
     period,
     address: wallet,
     tokens: [],
-    tokensInWallet: [],
+    tokensInWallet: 0,
     metrics: [],
     metricValues: []
   };
@@ -62,6 +62,7 @@ export async function createReport(
           decimals: t.decimals,
           profitUSD,
           profitETH: profitETH || undefined,
+          inWallet: false,
           lowLiquidity: false
         };
         if (balance > 0n) {
@@ -128,7 +129,8 @@ export async function createReport(
             default: {
               // pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
               // pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
-              report.tokensInWallet.push(result);
+              report.tokens.push(result);
+              report.tokensInWallet++;
             }
           }
         } else {
