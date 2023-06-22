@@ -71,51 +71,51 @@ export class AnalyticsEngine {
         }
       } else {
         // multiple entries
-        const tokenHistory = new TokenHistory('');
-        for (let i = 0; i < swap.tokenIn.length; i++) {
-          if (STABLES.has(swap.tokenIn[i])) {
-            const amount = swap.amountIn[i];
-            switch (swap.tokenIn[i]) {
-              case WETH_ADDRESS: {
-                tokenHistory.depositForETH(amount);
-                break;
-              }
-              case USDT_ADDRESS: {
-                tokenHistory.depositForUSDT(amount);
-                break;
-              }
-              case USDC_ADDRESS: {
-                tokenHistory.depositForUSDC(amount);
-                break;
-              }
-              case DAI_ADDRESS: {
-                tokenHistory.depositForDAI(amount);
-                break;
-              }
-            }
-          } else if (STABLES.has(swap.tokenOut[i])) {
-            const amount = swap.amountOut[i];
-            switch (swap.tokenOut[i]) {
-              case WETH_ADDRESS: {
-                tokenHistory.withdrawForETH(amount);
-                break;
-              }
-              case USDT_ADDRESS: {
-                tokenHistory.withdrawForUSDT(amount);
-                break;
-              }
-              case USDC_ADDRESS: {
-                tokenHistory.withdrawForUSDC(amount);
-                break;
-              }
-              case DAI_ADDRESS: {
-                tokenHistory.withdrawForDAI(amount);
-                break;
-              }
-            }
-          }
-        }
-        pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
+        // const tokenHistory = new TokenHistory('');
+        // for (let i = 0; i < swap.tokenIn.length; i++) {
+        //   if (STABLES.has(swap.tokenIn[i])) {
+        //     const amount = swap.amountIn[i];
+        //     switch (swap.tokenIn[i]) {
+        //       case WETH_ADDRESS: {
+        //         tokenHistory.depositForETH(amount);
+        //         break;
+        //       }
+        //       case USDT_ADDRESS: {
+        //         tokenHistory.depositForUSDT(amount);
+        //         break;
+        //       }
+        //       case USDC_ADDRESS: {
+        //         tokenHistory.depositForUSDC(amount);
+        //         break;
+        //       }
+        //       case DAI_ADDRESS: {
+        //         tokenHistory.depositForDAI(amount);
+        //         break;
+        //       }
+        //     }
+        //   } else if (STABLES.has(swap.tokenOut[i])) {
+        //     const amount = swap.amountOut[i];
+        //     switch (swap.tokenOut[i]) {
+        //       case WETH_ADDRESS: {
+        //         tokenHistory.withdrawForETH(amount);
+        //         break;
+        //       }
+        //       case USDT_ADDRESS: {
+        //         tokenHistory.withdrawForUSDT(amount);
+        //         break;
+        //       }
+        //       case USDC_ADDRESS: {
+        //         tokenHistory.withdrawForUSDC(amount);
+        //         break;
+        //       }
+        //       case DAI_ADDRESS: {
+        //         tokenHistory.withdrawForDAI(amount);
+        //         break;
+        //       }
+        //     }
+        //   }
+        // }
+        // pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
       }
     }
 

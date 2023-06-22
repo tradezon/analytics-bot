@@ -131,10 +131,12 @@ export async function createReport(
                 tokens: []
               };
               report.honeypots.tokens.push(result);
-              result.profitUSD = tokenHistory.getInputUSD(usdToEthPrice);
+              result.profitUSD = 0;
               result.profitETH = undefined;
-              pnlUSD.add(-result.profitUSD);
-              pnlPercent.add(-100);
+              // result.profitUSD = tokenHistory.getInputUSD(usdToEthPrice);
+              // result.profitETH = undefined;
+              // pnlUSD.add(-result.profitUSD);
+              // pnlPercent.add(-100);
               break;
             }
             case HoneypotResult.LOW_LIQUIDITY: {

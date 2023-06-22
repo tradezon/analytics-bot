@@ -257,7 +257,11 @@ export function wallet(
       renderTokensList(
         '📊 *Current coins in wallet*\\:',
         report,
-        report.tokens.filter((t) => t.inWallet),
+        report.tokens
+          .filter((t) => t.inWallet)
+          .sort((a, b) =>
+            a.balance ? (b.balance ? b.balance.usd - a.balance.usd : 1) : -1
+          ),
         true
       ),
       {

@@ -95,10 +95,12 @@ function mapMetricsTypeToName(type: string, ...values: number[]) {
   switch (type) {
     case WIN_RATE:
       return `*winrate ${escape(values[0].toFixed(1))}*`;
-    case PNL_AVERAGE_PERCENT_WITHOUT_HONEYPOTS:
-      return `*TOKEN PNL ${escape(values[0].toFixed(0))}%${
-        values[1] ? ` \\(${escape(values[1].toFixed(0))}\\%)` : ''
-      }*`;
+    case PNL_AVERAGE_PERCENT:
+      return `*TOKEN PNL ${escape(values[0].toFixed(0))}%*`;
+    // case PNL_AVERAGE_PERCENT:
+    //   return `*TOKEN PNL ${escape(values[0].toFixed(0))}%${
+    //     values[1] !== undefined ? ` \\(${escape(values[1].toFixed(0))}%\\)` : ''
+    //   }*`;
     case PNL_USD:
       return `*PNL ${escape(values[0].toFixed(0))}$*`;
     case FEES:
