@@ -60,7 +60,7 @@ export class TokenHistory {
     );
   }
 
-  protected getInputUSD(ethPrice: number): number {
+  getInputUSD(ethPrice: number): number {
     return (
       Number(formatEther(this._inETH)) * ethPrice +
       Number(formatUnits(this._inUSDT, 6)) +
@@ -104,49 +104,40 @@ export class TokenHistory {
     this._ETH += eth;
   }
 
-  push(swap: TransactionSwap) {
-    this._swaps.push(swap);
-    const len = swap.tokenIn.length;
-    for (let i = 0; i < len; i++) {
-      if (swap.tokenIn[i] === this.token) {
-        switch (swap.tokenOut[i]) {
-          case WETH_ADDRESS:
-            this._ETH += swap.amountOut[i];
-            break;
-          case USDT_ADDRESS:
-            this._USDT += swap.amountOut[i];
-            break;
-          case USDC_ADDRESS:
-            this._USDC += swap.amountOut[i];
-            break;
-          case DAI_ADDRESS:
-            this._DAI += swap.amountOut[i];
-            break;
-          default:
-            // TODO non stable coin, such swaps right now removed in execute call
-            break;
-        }
-      } else if (swap.tokenOut[i] === this.token) {
-        switch (swap.tokenIn[i]) {
-          case WETH_ADDRESS:
-            this._ETH -= swap.amountIn[i];
-            this._inETH += swap.amountIn[i];
-            break;
-          case USDT_ADDRESS:
-            this._USDT -= swap.amountIn[i];
-            break;
-          case USDC_ADDRESS:
-            this._USDC -= swap.amountIn[i];
-            break;
-          case DAI_ADDRESS:
-            this._DAI -= swap.amountIn[i];
-            break;
-          default:
-            // TODO non stable coin, such swaps right now removed in execute call
-            break;
-        }
-      }
-    }
+  depositForETH(val: bigint) {
+    this._ETH -= val;
+    this._inETH += val;
+  }
+
+  depositForDAI(val: bigint) {
+    this._DAI -= val;
+    this._inDAI += val;
+  }
+
+  depositForUSDT(val: bigint) {
+    this._USDT -= val;
+    this._inUSDT += val;
+  }
+
+  depositForUSDC(val: bigint) {
+    this._USDC -= val;
+    this._inUSDC += val;
+  }
+
+  withdrawForETH(val: bigint) {
+    this._ETH += val;
+  }
+
+  withdrawForDAI(val: bigint) {
+    this._DAI += val;
+  }
+
+  withdrawForUSDT(val: bigint) {
+    this._USDT += val;
+  }
+
+  withdrawForUSDC(val: bigint) {
+    this._USDC += val;
   }
 }
 
@@ -154,26 +145,60 @@ export class History {
   private map: Map<string, TokenHistory> = new Map<string, TokenHistory>();
 
   push(swap: TransactionSwap) {
-    const len = swap.tokenIn.length;
-    const visited = new Set<string>();
-    const visit = (token: string) => {
-      visited.add(token);
-      let history = this.map.get(token);
+    const in_ = swap.tokenIn[0];
+    const amountIn = swap.amountIn[0];
+    const amountOut = swap.amountOut[0];
+    if (STABLES.has(in_)) {
+      const out = swap.tokenOut[0];
+      if (STABLES.has(out)) return;
+      let history = this.map.get(out);
       if (!history) {
-        history = new TokenHistory(token);
-        this.map.set(token, history);
+        history = new TokenHistory(out);
+        this.map.set(out, history);
       }
-      history.push(swap);
-    };
-    for (let i = 0; i < len; i++) {
-      const in_ = swap.tokenIn[i];
-      if (visited.has(in_)) continue;
-      if (STABLES.has(in_)) {
-        const out = swap.tokenOut[i];
-        if (visited.has(out) || STABLES.has(out)) continue;
-        visit(out);
-      } else {
-        visit(in_);
+      switch (in_) {
+        case WETH_ADDRESS: {
+          history.depositForETH(amountIn);
+          break;
+        }
+        case DAI_ADDRESS: {
+          history.depositForDAI(amountIn);
+          break;
+        }
+        case USDT_ADDRESS: {
+          history.depositForUSDT(amountIn);
+          break;
+        }
+        case USDC_ADDRESS: {
+          history.depositForUSDC(amountIn);
+          break;
+        }
+      }
+    } else {
+      const out = swap.tokenOut[0];
+      if (!STABLES.has(out)) return;
+      let history = this.map.get(in_);
+      if (!history) {
+        history = new TokenHistory(in_);
+        this.map.set(in_, history);
+      }
+      switch (out) {
+        case WETH_ADDRESS: {
+          history.withdrawForETH(amountOut);
+          break;
+        }
+        case DAI_ADDRESS: {
+          history.withdrawForDAI(amountOut);
+          break;
+        }
+        case USDT_ADDRESS: {
+          history.withdrawForUSDT(amountOut);
+          break;
+        }
+        case USDC_ADDRESS: {
+          history.withdrawForUSDC(amountOut);
+          break;
+        }
       }
     }
   }

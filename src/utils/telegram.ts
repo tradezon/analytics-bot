@@ -103,7 +103,7 @@ function mapMetricsTypeToName(type: string, value: number) {
 export function renderShort(report: Report): [string, number] {
   let loss = 0;
   let [profitableCoins, lossCoins] = divideTokensWithLossThreshold(
-    report.tokens,
+    report.tokens.concat(report.tokensInWallet),
     0
   );
 
@@ -122,20 +122,8 @@ export function renderShort(report: Report): [string, number] {
   });
   for (const coin of lossCoins) loss += coin.profitUSD;
 
-  // TODO fix PNL
-  let pnl = sum(profitableCoins) + loss;
-
-  //#region current balance
-  let currentLossing = 0;
-  let [profitableWalletCoins, lossWalletCoins] = divideTokensWithLossThreshold(
-    report.wallet,
-    0
-  );
-  for (const coin of lossWalletCoins) currentLossing += coin.profitUSD;
-  //#endregion
-
   return [
-    `${header(report, pnl)}
+    `${header(report)}
 ${
   profitableCoins.length > 0
     ? `\n📈 *Profitable coins*:\n${profitableCoins
@@ -153,36 +141,12 @@ ${
         )
         .join('\n')}`
     : ''
-}${
-      report.wallet.length > 0
-        ? `\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${profitableWalletCoins
-            .map(
-              ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
-                `${
-                  balance
-                    ? `${escape(
-                        Number(formatUnits(balance.value, decimals)).toFixed(0)
-                      )}`
-                    : ''
-                }${hyperLink(
-                  etherscanAddressLink(token),
-                  escape(symbol)
-                )} ${escape(profitUSD.toFixed(0))}$ ${
-                  profitETH
-                    ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
-                        profitETH.x
-                      )}`
-                    : ''
-                }`
-            )
-            .join('\n')}\nRest ${escape(currentLossing.toFixed(0))}$`
-        : ''
-    }`,
+}`,
     -loss
   ];
 }
 
-function header(report: Report, pnl?: number) {
+function header(report: Report) {
   const metrics = report.metrics
     .map((m, i) => mapMetricsTypeToName(m, report.metricValues[i]))
     .join(' \\| ');
@@ -217,7 +181,7 @@ export function renderLosses(report: Report) {
 export function renderCurrentTokens(report: Report) {
   return `${header(
     report
-  )}\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${report.wallet
+  )}\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${report.tokensInWallet
     .map(
       ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
         `${
@@ -275,7 +239,7 @@ export function renderFull(report: Report) {
 
   //#region current balance
   let currentLossing = 0;
-  let walletTokens: TokenInfo[] = report.wallet;
+  let walletTokens: TokenInfo[] = report.tokensInWallet;
   let currentTokensThatLossingLessThan350Dollars: TokenInfo[] = [];
   if (walletTokens.length > 14) {
     [walletTokens, currentTokensThatLossingLessThan350Dollars] =
