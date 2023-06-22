@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import type { Report, TokenInfo } from '../types';
 import { formatUnits } from 'ethers';
-import { PNL_AVERAGE_PERCENT, PNL_USD, WIN_RATE } from './const';
+import { FEES, PNL_AVERAGE_PERCENT, PNL_USD, WIN_RATE } from './const';
 
 export const escape = (str: any) =>
   str
@@ -93,6 +93,8 @@ function mapMetricsTypeToName(type: string, value: number) {
       return `*PNL ${escape(value.toFixed(0))}%*`;
     case PNL_USD:
       return `*PNL ${escape(value.toFixed(0))}$*`;
+    case FEES:
+      return `*fees ${escape(value.toFixed(0))}$*`;
     default:
       throw new Error(`Unknown metric ${JSON.stringify(type)}`);
   }

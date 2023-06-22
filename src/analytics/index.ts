@@ -1,11 +1,18 @@
-import type { TransactionSwap } from '@tradezon/txswaps';
-import { JsonRpcProvider, WebSocketProvider } from 'ethers';
+import {
+  formatEther,
+  formatUnits,
+  JsonRpcProvider,
+  WebSocketProvider
+} from 'ethers';
 import type { Report } from '../types';
 import { createPriceOracle, PriceOracle } from './price-oracle';
 import { Wallet } from './wallet';
 import { History } from './history';
 import { STABLES } from './const';
 import { createReport } from './report';
+import { Accumulate } from '../utils/metrics/accumulate';
+import { FEES } from '../utils/const';
+import { AllSwaps } from '../transactions';
 
 export class AnalyticsEngine {
   private priceOracle: PriceOracle;
@@ -20,13 +27,15 @@ export class AnalyticsEngine {
   async execute(
     wallet: string,
     period: [number, number],
-    swaps: TransactionSwap[]
+    allSwaps: AllSwaps
   ): Promise<Report> {
+    const { swaps, fees: approveFees } = allSwaps;
     const walletState = new Wallet();
     const history = new History();
-
+    const feesGwei = new Accumulate<bigint>(FEES);
     const bannedTokens = new Set<string>();
     for (const swap of swaps) {
+      feesGwei.add(swap.fee);
       if (swap.tokenIn.length !== 1 || swap.tokenOut.length !== 1) continue;
       history.push(swap);
       if (
@@ -49,7 +58,8 @@ export class AnalyticsEngine {
 
     const ethUSDStr = await this.getETHPrice();
     const ethUSD = parseFloat(ethUSDStr);
-    return createReport(
+    const feesUSD = Number(feesGwei.compute());
+    const report = await createReport(
       this.provider,
       this.priceOracle,
       wallet,
@@ -58,5 +68,10 @@ export class AnalyticsEngine {
       history,
       ethUSD
     );
+
+    // report.metrics.push(feesGwei.name);
+    // report.metricValues.push(feesUSD);
+
+    return report;
   }
 }

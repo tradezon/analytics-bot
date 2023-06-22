@@ -21,9 +21,9 @@ export async function createReport(
   history: History,
   usdToEthPrice: number
 ): Promise<Report> {
-  const winRate = new Average(WIN_RATE);
-  const pnlUSD = new Accumulate(PNL_USD);
-  const pnlPercent = new Average(PNL_AVERAGE_PERCENT);
+  const winRate = new Average<number>(WIN_RATE);
+  const pnlUSD = new Accumulate<number>(PNL_USD);
+  const pnlPercent = new Average<number>(PNL_AVERAGE_PERCENT);
   const report: Report = {
     id: '',
     period,

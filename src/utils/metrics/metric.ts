@@ -8,7 +8,7 @@ export abstract class Metric<T, R extends any> {
     this.values.push(value);
   }
 
-  compute() {
-    return;
+  compute(): R {
+    throw new Error('not implemented');
   }
 }

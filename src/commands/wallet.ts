@@ -82,7 +82,7 @@ async function generateReport(
   const report = await analyticEngine.execute(
     wallet,
     period || [allSwaps.start, endPeriod],
-    allSwaps.swaps
+    allSwaps
   );
   return report;
 }

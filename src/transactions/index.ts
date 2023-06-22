@@ -9,14 +9,15 @@ import { findSwapInTransactionReceipt } from '@tradezon/txswaps';
 import type { TransactionSwap } from '@tradezon/txswaps/dist/types';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
-const blocksInWeek = Math.ceil(
-  (7 * 24 * 60 * 60) / AVERAGE_ETH_BLOCKTIME_SECONDS
+const blocksIn2Week = Math.ceil(
+  (2 * 7 * 24 * 60 * 60) / AVERAGE_ETH_BLOCKTIME_SECONDS
 );
-const MAX_BLOCKS_FOR_STATS = blocksInWeek * 14;
+const MAX_BLOCKS_FOR_STATS = blocksIn2Week * 7;
 const MIN_POSSIBLE_SWAPS = 250;
 
-interface AllSwaps {
+export interface AllSwaps {
   swaps: TransactionSwap[];
+  fees: number;
   start: number;
 }
 
@@ -43,7 +44,7 @@ export async function getAllSwaps(
       console.log(e.stack);
       return null;
     } else {
-      return { start: 0, swaps: [] };
+      return { start: 0, fees: 0, swaps: [] };
     }
   }
   if (!txs || txs.length === 0) return null;
@@ -78,7 +79,7 @@ export async function getAllSwaps(
         wallet,
         etherscanApi,
         provider,
-        blockStart - blocksInWeek
+        blockStart - blocksIn2Week
       );
     }
   }
@@ -118,5 +119,5 @@ export async function getAllSwaps(
     }
   }
 
-  return { start: start!, swaps };
+  return { start: start!, fees: approves * 3, swaps };
 }
