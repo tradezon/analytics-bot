@@ -1,7 +1,13 @@
 import dayjs from 'dayjs';
 import type { Report, TokenInfo } from '../types';
 import { formatUnits } from 'ethers';
-import { FEES, PNL_AVERAGE_PERCENT, PNL_USD, WIN_RATE } from './const';
+import {
+  FEES,
+  PNL_AVERAGE_PERCENT,
+  PNL_AVERAGE_PERCENT_WITHOUT_HONEYPOTS,
+  PNL_USD,
+  WIN_RATE
+} from './const';
 
 export const escape = (str: any) =>
   str
@@ -85,18 +91,20 @@ function sum(tokens: TokenInfo[]): number {
   return tokens.reduce((acc, t) => acc + t.profitUSD, 0 as number);
 }
 
-function mapMetricsTypeToName(type: string, value: number) {
+function mapMetricsTypeToName(type: string, ...values: number[]) {
   switch (type) {
     case WIN_RATE:
-      return `*winrate ${escape(value.toFixed(1))}*`;
-    case PNL_AVERAGE_PERCENT:
-      return `*PNL ${escape(value.toFixed(0))}%*`;
+      return `*winrate ${escape(values[0].toFixed(1))}*`;
+    case PNL_AVERAGE_PERCENT_WITHOUT_HONEYPOTS:
+      return `*TOKEN PNL ${escape(values[0].toFixed(0))}%${
+        values[1] ? ` \\(${escape(values[1].toFixed(0))}\\%)` : ''
+      }*`;
     case PNL_USD:
-      return `*PNL ${escape(value.toFixed(0))}$*`;
+      return `*PNL ${escape(values[0].toFixed(0))}$*`;
     case FEES:
-      return `*fees ${escape(value.toFixed(0))}$*`;
+      return `*fees ${escape(values[0].toFixed(0))}$*`;
     default:
-      throw new Error(`Unknown metric ${JSON.stringify(type)}`);
+      return null;
   }
 }
 
@@ -148,11 +156,20 @@ ${
 
 function header(report: Report) {
   const metrics = report.metrics
-    .map((m, i) => mapMetricsTypeToName(m, report.metricValues[i]))
+    .map((m, i) =>
+      m === PNL_AVERAGE_PERCENT
+        ? mapMetricsTypeToName(
+            m,
+            report.metricValues[i],
+            report.metricValues[i + 1]
+          )
+        : mapMetricsTypeToName(m, report.metricValues[i])
+    )
+    .filter((m) => m)
     .join(' \\| ');
-  return `Report for address ${address(report.address)} From ${escape(formatDate(report.period[0]))} to ${escape(
-    formatDate(report.period[1])
-  )}\n${metrics}`;
+  return `Report for address ${address(report.address)} From ${escape(
+    formatDate(report.period[0])
+  )} to ${escape(formatDate(report.period[1]))}\n${metrics}`;
 }
 
 export function renderLosses(report: Report) {
@@ -161,27 +178,16 @@ export function renderLosses(report: Report) {
     0
   );
 
-  return (
-    header(report) +
-    '\n\n📉 *Losses*:\n' +
-    nonprofitableCoins
-      .map(
-        ({ token, symbol, profitUSD, profitETH }) =>
-          `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
-            profitUSD.toFixed(0)
-          )}$ ${
-            profitETH ? `\\| ${escape(profitETH.value.toFixed(3))}ETH` : ''
-          }`
-      )
-      .join('\n')
-  );
+  return renderTokensList('📉 *Losses*\\:', report, nonprofitableCoins);
 }
 
-export function renderCurrentTokens(report: Report) {
-  return `${header(
-    report
-  )}\n\n📊 *Current coins in wallet*: \\( not in PNL \\)\n${report.tokens
-    .filter(t => t.inWallet)
+export function renderTokensList(
+  title: string,
+  report: Report,
+  tokens: TokenInfo[],
+  current: boolean = false
+) {
+  return `${header(report)}\n\n${title}\n${tokens
     .map(
       ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
         `${
@@ -190,10 +196,14 @@ export function renderCurrentTokens(report: Report) {
                 Number(formatUnits(balance.value, decimals)).toFixed(0)
               )}`
             : ''
-        }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
-          profitUSD.toFixed(0)
+        }${hyperLink(etherscanAddressLink(token), escape(symbol))} ${escape(
+          current
+            ? balance
+              ? balance.usd.toFixed(0)
+              : ''
+            : profitUSD.toFixed(0)
         )}$ ${
-          profitETH
+          profitETH && !current
             ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
                 profitETH.x
               )}`
@@ -201,119 +211,4 @@ export function renderCurrentTokens(report: Report) {
         }`
     )
     .join('\n')}`;
-}
-
-export function renderFull(report: Report) {
-  const allTokensLength = report.tokens.length;
-  let [profitableCoins, nonprofitableCoins] = divideTokensWithLossThreshold(
-    report.tokens,
-    0
-  );
-
-  profitableCoins = profitableCoins.sort((a, b) => {
-    if (a.profitETH?.x) {
-      if (b.profitETH?.x) {
-        const aValue = parseFloat(a.profitETH.x);
-        const bValue = parseFloat(b.profitETH.x);
-        return bValue - aValue;
-      }
-      return -1;
-    } else if (b.profitETH?.x) {
-      return 1;
-    }
-    return b.profitUSD - a.profitUSD;
-  });
-
-  //#region non-profitable tokens
-  let lost = 0;
-  let nonprofitableCoinsWithLessThan350DollarsLost: TokenInfo[] = [];
-  if (allTokensLength > 18) {
-    [nonprofitableCoinsWithLessThan350DollarsLost, nonprofitableCoins] =
-      divideTokensWithLossThreshold(nonprofitableCoins, -349);
-    for (const token of nonprofitableCoinsWithLessThan350DollarsLost) {
-      lost += token.profitUSD;
-    }
-  }
-  nonprofitableCoins = nonprofitableCoins.reverse();
-  //#endregion
-
-  //#region current balance
-  let currentLossing = 0;
-  let walletTokens: TokenInfo[] = report.tokens.filter(t => t.inWallet);
-  let currentTokensThatLossingLessThan350Dollars: TokenInfo[] = [];
-  if (walletTokens.length > 14) {
-    [walletTokens, currentTokensThatLossingLessThan350Dollars] =
-      divideTokensWithLossThreshold(walletTokens, -349);
-    for (const token of currentTokensThatLossingLessThan350Dollars) {
-      currentLossing += token.profitUSD;
-    }
-  }
-  //#endregion
-
-  return `${header(report)}
-
-📈 *Profitable coins*:\n${profitableCoins
-    .map(
-      ({ token, symbol, profitUSD, profitETH }) =>
-        `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
-          profitUSD.toFixed(0)
-        )}$ ${
-          profitETH
-            ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
-                profitETH.x
-              )}`
-            : ''
-        }`
-    )
-    .join('\n')}
-
-${
-  walletTokens.length > 0
-    ? `📊 *Current coins in wallet*: \\( not in PNL \\)\n${walletTokens
-        .map(
-          ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
-            `${
-              balance
-                ? `${escape(
-                    Number(formatUnits(balance.value, decimals)).toFixed(0)
-                  )}`
-                : ''
-            }${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
-              profitUSD.toFixed(0)
-            )}$ ${
-              profitUSD >= 300_000
-                ? '⚠️ __price estimation maybe wrong__'
-                : profitETH
-                ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
-                    profitETH.x
-                  )}`
-                : ''
-            }`
-        )
-        .join('\n')}${
-        currentTokensThatLossingLessThan350Dollars.length > 0
-          ? `\nCoins with more than 350$ loss \\( Total of ${escape(
-              currentLossing.toFixed(0)
-            )}$ \\):
-${renderInlineTokens(currentTokensThatLossingLessThan350Dollars)}`
-          : ''
-      }`
-    : ''
-}
-
-📉 Loss coins:\n${nonprofitableCoins
-    .map(
-      ({ token, symbol, profitUSD, profitETH }) =>
-        `${hyperLink(etherscanAddressLink(token), symbol)} ${escape(
-          profitUSD.toFixed(0)
-        )}$ ${profitETH ? `\\| ${escape(profitETH.value.toFixed(3))}ETH` : ''}`
-    )
-    .join('\n')}${
-    nonprofitableCoinsWithLessThan350DollarsLost.length > 0
-      ? `\nCoins with less than 350$ loss \\( Total of ${escape(
-          lost.toFixed(0)
-        )}$ \\):
-${renderInlineTokens(nonprofitableCoinsWithLessThan350DollarsLost)}`
-      : ''
-  }`;
 }

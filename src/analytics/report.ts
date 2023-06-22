@@ -8,7 +8,11 @@ import type { History } from './history';
 import type { PriceOracle } from './price-oracle';
 import { Average } from '../utils/metrics/average';
 import { Accumulate } from '../utils/metrics/accumulate';
-import { PNL_AVERAGE_PERCENT, PNL_USD, WIN_RATE } from '../utils/const';
+import {
+  PNL_AVERAGE_PERCENT_WITHOUT_HONEYPOTS,
+  PNL_USD,
+  WIN_RATE
+} from '../utils/const';
 import { HoneypotResult, isHoneypot } from '../honeypots';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
@@ -20,11 +24,12 @@ export async function createReport(
   period: [number, number],
   walletState: Wallet,
   history: History,
+  winRate: Average<number>,
+  pnlUSD: Accumulate<number>,
+  pnlPercent: Average<number>,
+  pnlPercentWithoutHoneypots: Average<number>,
   usdToEthPrice: number
 ): Promise<Report> {
-  const winRate = new Average<number>(WIN_RATE);
-  const pnlUSD = new Accumulate<number>(PNL_USD);
-  const pnlPercent = new Average<number>(PNL_AVERAGE_PERCENT);
   const report: Report = {
     id: '',
     period,
@@ -82,15 +87,21 @@ export async function createReport(
           const priceUSD = priceETH * usdToEthPrice;
           const currentBalanceUSD = priceUSD * tokensBalance;
 
-          // if (currentBalanceUSD < 0) {
-          //   try {
-          //     honeypot = await isHoneypot(tokenHistory.token, 30_000);
-          //   } catch (e: any) {
-          //     console.log(e.toString());
-          //     res();
-          //     return;
-          //   }
-          // }
+          if (currentBalanceUSD > 0) {
+            try {
+              honeypot = await isHoneypot(tokenHistory.token, 30_000);
+              console.log(
+                'Honeypot check for',
+                tokenHistory.token,
+                'result',
+                honeypot
+              );
+            } catch (e: any) {
+              console.log(e.toString());
+              res();
+              return;
+            }
+          }
 
           if (result.profitETH) {
             try {
@@ -121,21 +132,31 @@ export async function createReport(
               };
               report.honeypots.tokens.push(result);
               result.profitUSD = tokenHistory.getInputUSD(usdToEthPrice);
+              result.profitETH = undefined;
+              pnlUSD.add(-result.profitUSD);
+              pnlPercent.add(-100);
               break;
             }
             case HoneypotResult.LOW_LIQUIDITY: {
               result.lowLiquidity = true;
             }
             default: {
-              // pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
-              // pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
+              pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
+              pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
+              pnlPercentWithoutHoneypots.add(
+                tokenHistory.getProfitInPercent(usdToEthPrice)
+              );
               report.tokens.push(result);
+              result.inWallet = true;
               report.tokensInWallet++;
             }
           }
         } else {
           pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
           pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
+          pnlPercentWithoutHoneypots.add(
+            tokenHistory.getProfitInPercent(usdToEthPrice)
+          );
           report.tokens.push(result);
         }
         res();
@@ -144,12 +165,6 @@ export async function createReport(
   }
   await Promise.all(promises);
   report.tokens.sort((a, b) => b.profitUSD - a.profitUSD);
-  report.metrics = [pnlUSD.name, pnlPercent.name, winRate.name];
-  report.metricValues = [
-    pnlUSD.compute(),
-    pnlPercent.compute(),
-    winRate.compute()
-  ];
 
   report.id = nanoid();
   return report;

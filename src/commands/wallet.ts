@@ -9,11 +9,7 @@ import type { BaseScene } from 'telegraf/src/scenes/base';
 import { getAllSwaps } from '../transactions';
 import { AnalyticsEngine } from '../analytics';
 import reportsCache from '../analytics/cache';
-import {
-  renderCurrentTokens,
-  renderLosses,
-  renderShort
-} from '../utils/telegram';
+import { renderLosses, renderShort, renderTokensList } from '../utils/telegram';
 import { Report } from '../types';
 import { findBlockByTimestamp } from '../utils/find-block-by-timestamp';
 
@@ -21,9 +17,9 @@ const _3MonthsInSeconds = 3 * 30 * 24 * 60 * 60;
 
 function replyWithShortView(ctx: any, report: Report) {
   const [shortReport, losses] = renderShort(report);
-  const buttons: any[] = [];
+  const buttons: any[][] = [[], [], []];
   if (losses != 0) {
-    buttons.push(
+    buttons[0].push(
       Markup.button.callback(
         `Losses (${losses.toFixed(0)}$) 📉`,
         `losses_${report.id}`
@@ -31,15 +27,25 @@ function replyWithShortView(ctx: any, report: Report) {
     );
   }
   if (report.tokensInWallet > 0) {
-    buttons.push(
+    buttons[0].push(
       Markup.button.callback(
         `Current coins (${report.tokensInWallet}) 📊`,
         `current_${report.id}`
       )
     );
   }
+
+  if (report.honeypots) {
+    buttons[1].push(
+      Markup.button.callback(
+        `${report.honeypots.tokens.length} Honeypots ⚠️`,
+        `honeypots_${report.id}`
+      )
+    );
+  }
+
   return ctx.replyWithMarkdownV2(shortReport, {
-    ...Markup.inlineKeyboard(buttons),
+    ...Markup.inlineKeyboard(buttons.filter((b) => b.length !== 0)),
     disable_web_page_preview: true
   });
 }
@@ -247,12 +253,20 @@ export function wallet(
     if (!report) {
       return ctx.replyWithHTML('<b>Report not found</b> ❌');
     }
-    return ctx.replyWithMarkdownV2(renderCurrentTokens(report), {
-      ...Markup.inlineKeyboard([
-        Markup.button.callback(`Return to report ⬅️`, `short_${report.id}`)
-      ]),
-      disable_web_page_preview: true
-    });
+    return ctx.replyWithMarkdownV2(
+      renderTokensList(
+        '📊 *Current coins in wallet*\\:',
+        report,
+        report.tokens.filter((t) => t.inWallet),
+        true
+      ),
+      {
+        ...Markup.inlineKeyboard([
+          Markup.button.callback(`Return to report ⬅️`, `short_${report.id}`)
+        ]),
+        disable_web_page_preview: true
+      }
+    );
   });
 
   bot.action(/^short_(.+)/, (ctx) => {
@@ -262,6 +276,24 @@ export function wallet(
       return ctx.replyWithHTML('<b>Report not found</b> ❌');
     }
     return replyWithShortView(ctx, report);
+  });
+
+  bot.action(/^honeypots_(.+)/, (ctx) => {
+    const id = ctx.match[1];
+    const report = reportsCache.get(id);
+    if (!report || !report.honeypots) {
+      return ctx.replyWithHTML('<b>Report not found</b> ❌');
+    }
+
+    return ctx.replyWithMarkdownV2(
+      renderTokensList('⚠️ *Honeypots*\\:', report, report.honeypots.tokens),
+      {
+        ...Markup.inlineKeyboard([
+          Markup.button.callback(`Return to report ⬅️`, `short_${report.id}`)
+        ]),
+        disable_web_page_preview: true
+      }
+    );
   });
 
   return scenarioTypeWallet as any;
