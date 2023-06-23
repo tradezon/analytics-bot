@@ -36,7 +36,9 @@ async function main() {
     process.argv[2] || path.resolve(__dirname, 'config.json')
   );
   const provider = config.etherium_mainnet.match(/^https?\:/)
-    ? new JsonRpcProvider(config.etherium_mainnet)
+    ? new JsonRpcProvider(config.etherium_mainnet, 'mainnet', {
+        batchStallTime: 80
+      })
     : new WebSocketProvider(config.etherium_mainnet);
   const initialBlock = await findBlockByTimestamp(
     Date.now() / 1000 - 3 * 7 * 24 * 60 * 60,

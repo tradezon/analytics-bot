@@ -26,15 +26,18 @@ import {
 } from '../utils/const';
 import { AllSwaps } from '../transactions';
 import { Average } from '../utils/metrics/average';
+import { retry } from '../utils/promise-retry';
 
 export class AnalyticsEngine {
   private priceOracle: PriceOracle;
+  private getETHPrice: () => Promise<string>;
 
   constructor(
     private provider: JsonRpcProvider | WebSocketProvider,
-    private getETHPrice: () => Promise<string>
+    getETHPrice: () => Promise<string>
   ) {
     this.priceOracle = createPriceOracle(provider);
+    this.getETHPrice = retry(getETHPrice, { limit: 5, delayMs: 1_000 });
   }
 
   async execute(

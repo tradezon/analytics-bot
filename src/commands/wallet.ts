@@ -173,7 +173,7 @@ export function wallet(
     },
     async (ctx) => {
       const txt = (ctx.message as any)?.text;
-      if (!txt) ctx.wizard.back();
+      if (!txt) return ctx.wizard.back();
 
       const [startStr, endStr] = txt.split(' ');
       if (!startStr.trim() || !endStr.trim()) {

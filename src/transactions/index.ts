@@ -7,6 +7,7 @@ import {
 } from 'ethers';
 import { findSwapInTransactionReceipt } from '@tradezon/txswaps';
 import type { TransactionSwap } from '@tradezon/txswaps/dist/types';
+import { retry } from '../utils/promise-retry';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
 const blocksIn2Week = Math.ceil(
@@ -21,6 +22,35 @@ export interface AllSwaps {
   start: number;
 }
 
+async function loadAllAccountTransactions(
+  etherscanApi: any,
+  wallet: string,
+  blockStart: number,
+  blockEnd?: number
+) {
+  try {
+    const response = await etherscanApi.account.txlist(
+      wallet,
+      blockStart,
+      blockEnd || 'latest',
+      1,
+      3999
+    );
+    return response.result;
+  } catch (e: any) {
+    if (e.toString() !== 'No transactions found') {
+      throw e;
+    } else {
+      return [];
+    }
+  }
+}
+
+const txListWithRetry = retry(loadAllAccountTransactions, {
+  limit: 5,
+  delayMs: 2_000
+});
+
 export async function getAllSwaps(
   wallet: string,
   etherscanApi: any,
@@ -28,26 +58,15 @@ export async function getAllSwaps(
   blockStart: number,
   blockEnd?: number
 ): Promise<AllSwaps | null> {
-  let txs = [];
+  let txs: Array<any>;
   try {
-    const response = await etherscanApi.account.txlist(
-      wallet,
-      blockStart,
-      blockEnd || 'latest',
-      1,
-      4000
-    );
-    txs = response.result;
+    txs = await txListWithRetry(etherscanApi, wallet, blockStart, blockEnd);
   } catch (e: any) {
-    if (e.toString() !== 'No transactions found') {
-      console.log(e.message || e.toString());
-      console.log(e.stack);
-      return null;
-    } else {
-      return { start: 0, fees: 0, swaps: [] };
-    }
+    console.log(e.message || e.toString());
+    console.log(e.stack);
+    return null;
   }
-  if (!txs || txs.length === 0) return null;
+  if (!txs) return null;
 
   const promises: Promise<
     null | [TransactionResponse, TransactionReceipt, number]
