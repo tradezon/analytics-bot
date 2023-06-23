@@ -15,41 +15,6 @@ import { findBlockByTimestamp } from '../utils/find-block-by-timestamp';
 
 const _3MonthsInSeconds = 3 * 30 * 24 * 60 * 60;
 
-function replyWithShortView(ctx: any, report: Report) {
-  const [shortReport, losses] = renderShort(report);
-  const buttons: any[][] = [[], [], []];
-  if (losses != 0) {
-    buttons[0].push(
-      Markup.button.callback(
-        `Losses (${losses.toFixed(0)}$) 📉`,
-        `losses_${report.id}`
-      )
-    );
-  }
-  if (report.tokensInWallet > 0) {
-    buttons[0].push(
-      Markup.button.callback(
-        `Current coins (${report.tokensInWallet}) 📊`,
-        `current_${report.id}`
-      )
-    );
-  }
-
-  if (report.honeypots) {
-    buttons[1].push(
-      Markup.button.callback(
-        `${report.honeypots.tokens.length} Honeypots ⚠️`,
-        `honeypots_${report.id}`
-      )
-    );
-  }
-
-  return ctx.replyWithMarkdownV2(shortReport, {
-    ...Markup.inlineKeyboard(buttons.filter((b) => b.length !== 0)),
-    disable_web_page_preview: true
-  });
-}
-
 async function generateReport(
   etherscanApi: any,
   provider: JsonRpcProvider | WebSocketProvider,
@@ -103,6 +68,107 @@ export function wallet(
     const { result } = await etherscanApi.stats.ethprice();
     return result.ethusd;
   });
+
+  let exec = false;
+  const queue: Array<{
+    chatId: number;
+    messageId?: number;
+    wallet: string;
+    blockStart: number;
+    blockEnd?: number;
+    period?: [number, number];
+  }> = [];
+  const replyWithShortView = async (
+    report: Report,
+    chatId: number,
+    message?: number
+  ) => {
+    const [shortReport, losses] = renderShort(report);
+    const buttons: any[][] = [[], [], []];
+    if (losses != 0) {
+      buttons[0].push(
+        Markup.button.callback(
+          `Losses (${losses.toFixed(0)}$) 📉`,
+          `losses_${report.id}`
+        )
+      );
+    }
+    if (report.tokensInWallet > 0) {
+      buttons[0].push(
+        Markup.button.callback(
+          `Current coins (${report.tokensInWallet}) 📊`,
+          `current_${report.id}`
+        )
+      );
+    }
+
+    if (report.honeypots) {
+      buttons[1].push(
+        Markup.button.callback(
+          `${report.honeypots.tokens.length} Honeypots ⚠️`,
+          `honeypots_${report.id}`
+        )
+      );
+    }
+
+    bot.telegram.sendMessage(chatId, shortReport, {
+      parse_mode: 'MarkdownV2',
+      ...Markup.inlineKeyboard(buttons.filter((b) => b.length !== 0)),
+      disable_web_page_preview: true,
+      reply_to_message_id: message
+    });
+  };
+  const generateReports = async () => {
+    if (queue.length === 0 || exec) return;
+    exec = true;
+    console.log(`Processing ${queue[0].wallet}`);
+    for (const {
+      chatId,
+      messageId,
+      wallet,
+      blockStart,
+      blockEnd,
+      period
+    } of queue) {
+      try {
+        const report = await generateReport(
+          etherscanApi,
+          provider,
+          analyticEngine,
+          wallet,
+          blockStart,
+          blockEnd,
+          period
+        );
+
+        if (report) {
+          reportsCache.set(report.id, report);
+          replyWithShortView(report, chatId, messageId);
+        } else {
+          bot.telegram.sendMessage(
+            chatId,
+            `Trade transactions was not found for ${wallet} 💸`,
+            {
+              reply_to_message_id: messageId
+            }
+          );
+        }
+      } catch (e: any) {
+        bot.telegram.sendMessage(
+          chatId,
+          `<b>Execution error for ${wallet}</b> Try later.. ❌`,
+          {
+            parse_mode: 'HTML',
+            reply_to_message_id: messageId
+          }
+        );
+      }
+    }
+    queue.length = 0;
+    exec = false;
+  };
+  setInterval(generateReports, 60).unref();
+
   const scenarioTypeWallet = new Scenes.WizardScene(
     'SCENARIO_TYPE_WALLET',
     ((ctx: any) => {
@@ -149,27 +215,13 @@ export function wallet(
       }
       ctx.reply(`Preparing report for ${wallet}... ⌛`);
 
-      try {
-        const report = await generateReport(
-          etherscanApi,
-          provider,
-          analyticEngine,
-          wallet,
-          getBlockNumber()
-        );
-        if (report) {
-          reportsCache.set(report.id, report);
-          replyWithShortView(ctx, report);
-        } else {
-          ctx.replyWithHTML('Trade transactions was not found 💸');
-        }
-        return ctx.scene.leave();
-      } catch (e: any) {
-        console.log(e.toString());
-        console.log(e.stack);
-        ctx.replyWithHTML('<b>Execution error.</b>Try later.. ❌');
-        return ctx.scene.leave();
-      }
+      queue.push({
+        chatId: ctx.chat!.id,
+        messageId: ctx.message?.message_id,
+        wallet,
+        blockStart: getBlockNumber()
+      });
+      return ctx.scene.leave();
     },
     async (ctx) => {
       const txt = (ctx.message as any)?.text;
@@ -208,21 +260,14 @@ export function wallet(
         }
         ctx.reply(`Preparing report for ${wallet}... ⌛`);
 
-        const report = await generateReport(
-          etherscanApi,
-          provider,
-          analyticEngine,
+        queue.push({
+          chatId: ctx.chat!.id,
+          messageId: ctx.message?.message_id,
           wallet,
-          blockStart.number,
-          blockEnd.number,
-          [blockStart.timestamp * 1000, blockEnd.timestamp * 1000]
-        );
-        if (report) {
-          reportsCache.set(report.id, report);
-          replyWithShortView(ctx, report);
-        } else {
-          ctx.replyWithHTML('Trade transactions was not found 💸');
-        }
+          blockStart: blockStart.number,
+          blockEnd: blockEnd.number,
+          period: [blockStart.timestamp * 1000, blockEnd.timestamp * 1000]
+        });
         return ctx.scene.leave();
       } catch (e: any) {
         console.log(e.toString());
@@ -279,7 +324,7 @@ export function wallet(
     if (!report) {
       return ctx.replyWithHTML('<b>Report not found</b> ❌');
     }
-    return replyWithShortView(ctx, report);
+    return replyWithShortView(report, ctx.chat!.id);
   });
 
   bot.action(/^honeypots_(.+)/, (ctx) => {

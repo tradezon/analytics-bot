@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/invariant": "^2.2.35",
     "@types/jest": "^29.5.2",
+    "@types/log4js": "^2.3.5",
     "dotenv": "^16.3.1",
     "esbuild": "^0.18.2",
     "ts-jest": "^29.1.0",

@@ -10,10 +10,13 @@ import type { TransactionSwap } from '@tradezon/txswaps/dist/types';
 import { retry } from '../utils/promise-retry';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
-const blocksIn2Week = Math.ceil(
+const blocksIn2Weeks = Math.ceil(
   (2 * 7 * 24 * 60 * 60) / AVERAGE_ETH_BLOCKTIME_SECONDS
 );
-const MAX_BLOCKS_FOR_STATS = blocksIn2Week * 7;
+const blocksIn3Weeks = Math.ceil(
+  (3 * 7 * 24 * 60 * 60) / AVERAGE_ETH_BLOCKTIME_SECONDS
+);
+const MAX_BLOCKS_FOR_STATS = blocksIn2Weeks * 7;
 const MIN_POSSIBLE_SWAPS = 250;
 
 export interface AllSwaps {
@@ -98,7 +101,7 @@ export async function getAllSwaps(
         wallet,
         etherscanApi,
         provider,
-        blockStart - blocksIn2Week
+        blockStart - blocksIn3Weeks
       );
     }
   }
