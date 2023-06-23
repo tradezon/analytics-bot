@@ -92,6 +92,7 @@ export async function createReport(
             try {
               honeypot = await isHoneypot(tokenHistory.token, 30_000);
             } catch (e: any) {
+              console.log(`Fail to detect honeypot for ${tokenHistory.token}`);
               console.log(e.toString());
               res();
               return;

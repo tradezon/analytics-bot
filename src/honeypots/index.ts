@@ -45,7 +45,7 @@ export async function isHoneypot(
     const response = await retryGet(`/v2/IsHoneypot?address=${token}`);
     if (!response.data) return HoneypotResult.UNKNOWN;
     const data = response.data;
-    if (data.honeypotResult.isHoneypot || data.simulationSuccess === false) {
+    if (data.honeypotResult?.isHoneypot || data.simulationSuccess === false) {
       return HoneypotResult.HONEYPOT;
     }
     if (data.pair.liquidity < minLiquidity) {
