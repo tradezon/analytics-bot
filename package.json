@@ -9,7 +9,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@tradezon/txswaps": "^0.9.5",
+    "@tradezon/txswaps": "^0.9.6",
     "axios": "^1.4.0",
     "better-sqlite3": "^8.4.0",
     "dayjs": "^1.11.8",

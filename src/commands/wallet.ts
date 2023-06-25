@@ -12,6 +12,7 @@ import reportsCache from '../analytics/cache';
 import { renderLosses, renderShort, renderTokensList } from '../utils/telegram';
 import { Report } from '../types';
 import { findBlockByTimestamp } from '../utils/find-block-by-timestamp';
+import logger from '../logger';
 
 const _3MonthsInSeconds = 3 * 30 * 24 * 60 * 60;
 
@@ -34,6 +35,7 @@ async function generateReport(
     }
     endPeriod = block.timestamp * 1000;
   }
+  logger.debug(`Getting all swaps for ${wallet}`);
   const allSwaps = await getAllSwaps(
     wallet,
     etherscanApi,
@@ -41,8 +43,12 @@ async function generateReport(
     blockStart,
     blockEnd
   );
-  if (!allSwaps) throw new Error('Did not found swaps');
+  if (!allSwaps) {
+    throw new Error('Did not found swaps');
+    logger.warn(`Swaps searching error for ${wallet}`);
+  }
   if (allSwaps.swaps.length === 0) {
+    logger.debug(`No swaps found for ${wallet}`);
     return null;
   }
 
@@ -121,7 +127,7 @@ export function wallet(
   const generateReports = async () => {
     if (queue.length === 0 || exec) return;
     exec = true;
-    console.log(`Processing ${queue[0].wallet}`);
+    logger.info(`Processing ${queue[0].wallet}`);
     for (const {
       chatId,
       messageId,
@@ -154,6 +160,7 @@ export function wallet(
           );
         }
       } catch (e: any) {
+        logger.error(e);
         bot.telegram.sendMessage(
           chatId,
           `<b>Execution error for ${wallet}</b> Try later.. ❌`,

@@ -6,6 +6,7 @@ import { wallet } from './commands/wallet';
 import { admin, Tier, User } from './commands/admin';
 import { createAuthMiddleware } from './utils/telegram-auth-middleware';
 import { findBlockByTimestamp } from './utils/find-block-by-timestamp';
+import logger from './logger';
 
 const WALLET_TEXT = 'Wallet analytics 💰';
 const ADMIN_TEXT = 'Admin panel 👑';
@@ -44,6 +45,7 @@ async function main() {
     Date.now() / 1000 - 3 * 7 * 24 * 60 * 60,
     provider
   );
+  logger.level = 'trace';
   let blockNumber = initialBlock.number;
   setInterval(() => blockNumber++, 10 * 1000).unref();
   console.log(`Initial block number ${blockNumber}`);

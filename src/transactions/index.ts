@@ -8,6 +8,7 @@ import {
 import { findSwapInTransactionReceipt } from '@tradezon/txswaps';
 import type { TransactionSwap } from '@tradezon/txswaps/dist/types';
 import { retry } from '../utils/promise-retry';
+import logger from '../logger';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
 const blocksIn2Weeks = Math.ceil(
@@ -65,8 +66,7 @@ export async function getAllSwaps(
   try {
     txs = await txListWithRetry(etherscanApi, wallet, blockStart, blockEnd);
   } catch (e: any) {
-    console.log(e.message || e.toString());
-    console.log(e.stack);
+    logger.error(e);
     return null;
   }
   if (!txs) return null;
@@ -96,13 +96,12 @@ export async function getAllSwaps(
       latestBlock.number - MAX_BLOCKS_FOR_STATS < blockStart &&
       filteredTx.length < MIN_POSSIBLE_SWAPS
     ) {
-      // dig in a week
-      return getAllSwaps(
-        wallet,
-        etherscanApi,
-        provider,
-        blockStart - blocksIn3Weeks
+      const newStart = blockStart - blocksIn3Weeks;
+      logger.debug(
+        `Increasing swaps range for ${wallet} from ${blockStart} to ${newStart}`
       );
+      // dig in a week
+      return getAllSwaps(wallet, etherscanApi, provider, newStart);
     }
   }
 
@@ -134,6 +133,7 @@ export async function getAllSwaps(
   for (const res of await Promise.all(promises)) {
     if (!res) continue;
     const [ts, tr, timestamp] = res;
+    logger.trace(`Finding swap for ${tr.hash}`);
     const swap = findSwapInTransactionReceipt(ts, tr);
     if (swap) {
       start = start ? Math.min(timestamp, start) : timestamp;
