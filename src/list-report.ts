@@ -114,26 +114,6 @@ async function main() {
           ','
         )
       );
-
-      logger.info(`Saving ${wallet} data on disk..`);
-      await fs.promises.writeFile(
-        path.resolve(dataDir, `${wallet}-10.json`),
-        JSON.stringify(
-          reportsArr[0],
-          (key, value) =>
-            typeof value === 'bigint' ? value.toString() : value,
-          4
-        )
-      );
-      await fs.promises.writeFile(
-        path.resolve(dataDir, `${wallet}-latest.json`),
-        JSON.stringify(
-          reportsArr[1],
-          (key, value) =>
-            typeof value === 'bigint' ? value.toString() : value,
-          4
-        )
-      );
     } catch (e: any) {
       logger.error(e);
     }
