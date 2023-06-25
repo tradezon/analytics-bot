@@ -22,12 +22,15 @@ import {
   PNL_AVERAGE_PERCENT,
   PNL_USD,
   WIN_RATE,
-  PNL2_USD
+  PNL2_USD,
+  AMOUNT_OF_SWAPS,
+  AMOUNT_OF_TOKENS
 } from '../utils/const';
 import { AllSwaps } from '../transactions';
 import { Average } from '../utils/metrics/average';
 import { retry } from '../utils/promise-retry';
 import { ComposeMetric } from '../utils/metrics/compose-metric';
+import { Counter } from '../utils/metrics/counter';
 
 export class AnalyticsEngine {
   private priceOracle: PriceOracle;
@@ -54,6 +57,8 @@ export class AnalyticsEngine {
     const winRate = new Average<number>(WIN_RATE);
     const pnlUSD = new Accumulate<number>(PNL_USD);
     const pnl2USD = new Accumulate<number>(PNL2_USD);
+    const amountOfSwaps = new Counter(AMOUNT_OF_SWAPS);
+    const amountOfTokens = new Counter(AMOUNT_OF_TOKENS);
     const pnlPercent = new Average<number>(PNL_AVERAGE_PERCENT);
     const feesEth = new Accumulate<bigint>(FEES);
     const bannedTokens = new Set<string>();
@@ -119,6 +124,7 @@ export class AnalyticsEngine {
         }
         pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
       }
+      amountOfSwaps.inc();
     }
 
     //#region banned tokens
@@ -138,23 +144,28 @@ export class AnalyticsEngine {
       winRate,
       new ComposeMetric(pnlUSD, pnl2USD),
       pnlPercent,
+      amountOfSwaps,
+      amountOfTokens,
       usdToEthPrice
     );
-    const feesUSD = Number(formatEther(feesEth.compute())) * usdToEthPrice;
 
     report.metrics = [
       pnl2USD.name,
       pnlUSD.name,
       pnlPercent.name,
       winRate.name,
-      feesEth.name
+      feesEth.name,
+      amountOfSwaps.name,
+      amountOfTokens.name
     ];
     report.metricValues = [
       pnl2USD.compute(),
       pnlUSD.compute(),
       pnlPercent.compute(),
       winRate.compute(),
-      feesUSD
+      Number(formatEther(feesEth.compute())) * usdToEthPrice,
+      amountOfSwaps.compute(),
+      amountOfTokens.compute()
     ];
 
     return report;

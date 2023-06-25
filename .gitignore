@@ -1,4 +1,5 @@
 dir
+data
 node_modules
 .idea
 coverage

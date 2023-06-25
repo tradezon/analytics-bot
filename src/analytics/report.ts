@@ -9,6 +9,7 @@ import type { PriceOracle } from './price-oracle';
 import { Average } from '../utils/metrics/average';
 import { Accumulate } from '../utils/metrics/accumulate';
 import { HoneypotResult, isHoneypot } from '../honeypots';
+import { Counter } from '../utils/metrics/counter';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -22,6 +23,7 @@ export async function createReport(
   winRate: Average<number>,
   pnlUSD: Accumulate<number>,
   pnlPercent: Average<number>,
+  amountOfSwaps: Counter,
   usdToEthPrice: number
 ): Promise<Report> {
   const report: Report = {
@@ -139,6 +141,7 @@ export async function createReport(
         winRate.add(Number(result.profitUSD >= 0));
         pnlUSD.add(result.profitUSD);
         pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
+        amountOfTokens.inc();
         res();
       })
     );
