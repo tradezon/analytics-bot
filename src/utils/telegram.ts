@@ -1,7 +1,15 @@
 import dayjs from 'dayjs';
 import type { Report, TokenInfo } from '../types';
 import { formatUnits } from 'ethers';
-import { FEES, PNL_AVERAGE_PERCENT, PNL_USD, WIN_RATE } from './const';
+import {
+  AMOUNT_IN_USD_AVG,
+  AMOUNT_IN_USD_MEDIAN,
+  FEES,
+  PNL_AVERAGE_PERCENT,
+  PNL_OF_TOKENS_WITH_AMOUNT_IN_MORE_THAN_AVG,
+  PNL_USD,
+  WIN_RATE
+} from './const';
 
 export const escape = (str: any) =>
   str
@@ -91,10 +99,12 @@ function mapMetricsTypeToName(type: string, ...values: number[]) {
       return `*winrate ${escape(values[0].toFixed(2))}*`;
     case PNL_AVERAGE_PERCENT:
       return `*TOKEN PNL ${escape(values[0].toFixed(0))}%*`;
-    // case PNL_AVERAGE_PERCENT:
-    //   return `*TOKEN PNL ${escape(values[0].toFixed(0))}%${
-    //     values[1] !== undefined ? ` \\(${escape(values[1].toFixed(0))}%\\)` : ''
-    //   }*`;
+    case AMOUNT_IN_USD_AVG:
+      return `*AVG IN / % of PNL ${escape(values[0].toFixed(0))}$ \\(${escape(
+        values[1].toFixed(1)
+      )}%\\)*`;
+    case AMOUNT_IN_USD_MEDIAN:
+      return `*MEDIAN IN ${escape(values[0].toFixed(0))}$*`;
     case PNL_USD:
       return `*PNL ${escape(values[0].toFixed(0))}$*`;
     case FEES:
@@ -157,7 +167,7 @@ ${
 function header(report: Report) {
   const metrics = report.metrics
     .map((m, i) =>
-      m === PNL_AVERAGE_PERCENT
+      m === AMOUNT_IN_USD_AVG
         ? mapMetricsTypeToName(
             m,
             report.metricValues[i],

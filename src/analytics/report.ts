@@ -10,6 +10,7 @@ import { Average } from '../utils/metrics/average';
 import { Accumulate } from '../utils/metrics/accumulate';
 import { HoneypotResult, isHoneypot } from '../honeypots';
 import { Counter } from '../utils/metrics/counter';
+import { MetricData } from '../utils/metrics/data';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -24,6 +25,7 @@ export async function createReport(
   pnlUSD: Accumulate<number>,
   pnlPercent: Average<number>,
   amountOfTokens: Counter,
+  amountInData: MetricData<number>,
   usdToEthPrice: number
 ): Promise<Report> {
   const report: Report = {
@@ -105,8 +107,11 @@ export async function createReport(
               report.honeypots.tokens.push(result);
               result.profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
               winRate.add(0);
-              pnlUSD.add(result.profitUSD);
-              pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
+              pnlUSD.add(result.profitUSD, tokenHistory.token);
+              pnlPercent.add(
+                tokenHistory.getProfitInPercent(usdToEthPrice),
+                tokenHistory.token
+              );
               res();
               return;
             }
@@ -139,13 +144,21 @@ export async function createReport(
 
         report.tokens.push(result);
         winRate.add(Number(result.profitUSD >= 0));
-        pnlUSD.add(result.profitUSD);
-        pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
+        pnlUSD.add(result.profitUSD, tokenHistory.token);
+        pnlPercent.add(
+          tokenHistory.getProfitInPercent(usdToEthPrice),
+          tokenHistory.token
+        );
         amountOfTokens.inc();
+        amountInData.add(
+          tokenHistory.getInputUSD(usdToEthPrice),
+          tokenHistory.token
+        );
         res();
       })
     );
   }
+
   await Promise.all(promises);
   report.tokens.sort((a, b) => b.profitUSD - a.profitUSD);
 

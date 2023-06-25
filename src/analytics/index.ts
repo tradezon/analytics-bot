@@ -24,13 +24,18 @@ import {
   WIN_RATE,
   PNL2_USD,
   AMOUNT_OF_SWAPS,
-  AMOUNT_OF_TOKENS
+  AMOUNT_OF_TOKENS,
+  PNL_OF_TOKENS_WITH_AMOUNT_IN_MORE_THAN_AVG,
+  AMOUNT_IN_USD_MEDIAN,
+  AMOUNT_IN_USD_AVG
 } from '../utils/const';
 import { AllSwaps } from '../transactions';
 import { Average } from '../utils/metrics/average';
 import { retry } from '../utils/promise-retry';
 import { ComposeMetric } from '../utils/metrics/compose-metric';
 import { Counter } from '../utils/metrics/counter';
+import { MetricData } from '../utils/metrics/data';
+import { Median } from '../utils/metrics/median';
 
 export class AnalyticsEngine {
   private priceOracle: PriceOracle;
@@ -57,6 +62,7 @@ export class AnalyticsEngine {
     const winRate = new Average<number>(WIN_RATE);
     const pnlUSD = new Accumulate<number>(PNL_USD);
     const pnl2USD = new Accumulate<number>(PNL2_USD);
+    const amountInData = new MetricData<number>();
     const amountOfSwaps = new Counter(AMOUNT_OF_SWAPS);
     const amountOfTokens = new Counter(AMOUNT_OF_TOKENS);
     const pnlPercent = new Average<number>(PNL_AVERAGE_PERCENT);
@@ -145,26 +151,50 @@ export class AnalyticsEngine {
       new ComposeMetric(pnlUSD, pnl2USD),
       pnlPercent,
       amountOfTokens,
+      amountInData,
       usdToEthPrice
     );
 
+    const averageInAmountMetric = amountInData.toMetric(
+      Average,
+      AMOUNT_IN_USD_AVG
+    );
+    const medianInAmount = amountInData.toMetric(Median, AMOUNT_IN_USD_MEDIAN);
+    const averageInAmount = averageInAmountMetric.compute();
+    const tokensWithPNLMoreThanAverageIn = new Set<string>();
+    for (const tokenHistory of history.tokens) {
+      const in_ = tokenHistory.getInputUSD(usdToEthPrice);
+      if (in_ >= averageInAmount) {
+        tokensWithPNLMoreThanAverageIn.add(tokenHistory.token);
+      }
+    }
+    const pnl2 = pnl2USD.compute();
+    const pnl2OfTokensWithMoreThanAverageIn = pnl2USD.compute((token) =>
+      tokensWithPNLMoreThanAverageIn.has(token)
+    );
     report.metrics = [
       pnl2USD.name,
       pnlUSD.name,
       pnlPercent.name,
       winRate.name,
-      feesEth.name,
       amountOfSwaps.name,
-      amountOfTokens.name
+      amountOfTokens.name,
+      medianInAmount.name,
+      averageInAmountMetric.name,
+      PNL_OF_TOKENS_WITH_AMOUNT_IN_MORE_THAN_AVG,
+      feesEth.name
     ];
     report.metricValues = [
-      pnl2USD.compute(),
+      pnl2,
       pnlUSD.compute(),
       pnlPercent.compute(),
       winRate.compute(),
-      Number(formatEther(feesEth.compute())) * usdToEthPrice,
       amountOfSwaps.compute(),
-      amountOfTokens.compute()
+      amountOfTokens.compute(),
+      medianInAmount.compute(),
+      averageInAmount,
+      (pnl2OfTokensWithMoreThanAverageIn / pnl2) * 100,
+      Number(formatEther(feesEth.compute())) * usdToEthPrice
     ];
 
     return report;
