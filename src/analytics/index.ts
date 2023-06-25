@@ -19,14 +19,15 @@ import { createReport } from './report';
 import { Accumulate } from '../utils/metrics/accumulate';
 import {
   FEES,
-  PNL_AVERAGE_PERCENT_WITHOUT_HONEYPOTS,
   PNL_AVERAGE_PERCENT,
   PNL_USD,
-  WIN_RATE
+  WIN_RATE,
+  PNL2_USD
 } from '../utils/const';
 import { AllSwaps } from '../transactions';
 import { Average } from '../utils/metrics/average';
 import { retry } from '../utils/promise-retry';
+import { ComposeMetric } from '../utils/metrics/compose-metric';
 
 export class AnalyticsEngine {
   private priceOracle: PriceOracle;
@@ -52,10 +53,8 @@ export class AnalyticsEngine {
     const history = new History();
     const winRate = new Average<number>(WIN_RATE);
     const pnlUSD = new Accumulate<number>(PNL_USD);
+    const pnl2USD = new Accumulate<number>(PNL2_USD);
     const pnlPercent = new Average<number>(PNL_AVERAGE_PERCENT);
-    const pnlPercentWithoutHoneypots = new Average<number>(
-      PNL_AVERAGE_PERCENT_WITHOUT_HONEYPOTS
-    );
     const feesEth = new Accumulate<bigint>(FEES);
     const bannedTokens = new Set<string>();
     for (const swap of swaps) {
@@ -137,24 +136,23 @@ export class AnalyticsEngine {
       walletState,
       history,
       winRate,
-      pnlUSD,
+      new ComposeMetric(pnlUSD, pnl2USD),
       pnlPercent,
-      pnlPercentWithoutHoneypots,
       usdToEthPrice
     );
     const feesUSD = Number(formatEther(feesEth.compute())) * usdToEthPrice;
 
     report.metrics = [
+      pnl2USD.name,
       pnlUSD.name,
       pnlPercent.name,
-      pnlPercentWithoutHoneypots.name,
       winRate.name,
       feesEth.name
     ];
     report.metricValues = [
+      pnl2USD.compute(),
       pnlUSD.compute(),
       pnlPercent.compute(),
-      pnlPercentWithoutHoneypots.compute(),
       winRate.compute(),
       feesUSD
     ];

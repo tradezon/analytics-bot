@@ -39,7 +39,10 @@ async function main() {
   const block3WeeksStart = blockEnd - blocksIn3Weeks;
 
   const data = fs.readFileSync(0, 'utf-8');
-  const addrs = data.split('\n').map(s => s.trim()).filter((s) => s);
+  const addrs = data
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((s) => s);
   const reports = new Set<string>();
 
   const shutdown = () => {

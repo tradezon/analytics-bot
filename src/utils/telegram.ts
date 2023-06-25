@@ -1,13 +1,7 @@
 import dayjs from 'dayjs';
 import type { Report, TokenInfo } from '../types';
 import { formatUnits } from 'ethers';
-import {
-  FEES,
-  PNL_AVERAGE_PERCENT,
-  PNL_AVERAGE_PERCENT_WITHOUT_HONEYPOTS,
-  PNL_USD,
-  WIN_RATE
-} from './const';
+import { FEES, PNL_AVERAGE_PERCENT, PNL_USD, WIN_RATE } from './const';
 
 export const escape = (str: any) =>
   str

@@ -8,11 +8,6 @@ import type { History } from './history';
 import type { PriceOracle } from './price-oracle';
 import { Average } from '../utils/metrics/average';
 import { Accumulate } from '../utils/metrics/accumulate';
-import {
-  PNL_AVERAGE_PERCENT_WITHOUT_HONEYPOTS,
-  PNL_USD,
-  WIN_RATE
-} from '../utils/const';
 import { HoneypotResult, isHoneypot } from '../honeypots';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
@@ -27,7 +22,6 @@ export async function createReport(
   winRate: Average<number>,
   pnlUSD: Accumulate<number>,
   pnlPercent: Average<number>,
-  pnlPercentWithoutHoneypots: Average<number>,
   usdToEthPrice: number
 ): Promise<Report> {
   const report: Report = {
@@ -145,9 +139,6 @@ export async function createReport(
         winRate.add(Number(result.profitUSD >= 0));
         pnlUSD.add(result.profitUSD);
         pnlPercent.add(tokenHistory.getProfitInPercent(usdToEthPrice));
-        pnlPercentWithoutHoneypots.add(
-          tokenHistory.getProfitInPercent(usdToEthPrice)
-        );
         res();
       })
     );
