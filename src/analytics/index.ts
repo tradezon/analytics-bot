@@ -144,7 +144,6 @@ export class AnalyticsEngine {
       winRate,
       new ComposeMetric(pnlUSD, pnl2USD),
       pnlPercent,
-      amountOfSwaps,
       amountOfTokens,
       usdToEthPrice
     );

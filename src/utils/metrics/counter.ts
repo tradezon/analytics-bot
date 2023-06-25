@@ -1,6 +1,6 @@
 import { Accumulate } from './accumulate';
 
-export class Counter extends Accumulate<number> {
+export class Counter extends Accumulate<number, never> {
   inc(num = 1) {
     this.values.push(num);
   }

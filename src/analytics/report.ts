@@ -23,7 +23,7 @@ export async function createReport(
   winRate: Average<number>,
   pnlUSD: Accumulate<number>,
   pnlPercent: Average<number>,
-  amountOfSwaps: Counter,
+  amountOfTokens: Counter,
   usdToEthPrice: number
 ): Promise<Report> {
   const report: Report = {

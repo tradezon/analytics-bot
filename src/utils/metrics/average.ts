@@ -4,14 +4,17 @@ function isBigint(s: number | bigint): s is bigint {
   return typeof s === 'bigint';
 }
 
-export class Average<T extends number | bigint> extends Accumulate<T> {
-  compute(): T {
-    const sum = super.compute();
-
+export class Average<
+  T extends number | bigint,
+  K extends any = any
+> extends Accumulate<T, K> {
+  compute(filter?: (mark: K) => boolean): T {
+    const sum = super.compute(filter);
+    const newArr = this.filter(filter);
     if (isBigint(sum)) {
-      return (sum / BigInt(this.values.length)) as T;
+      return (sum / BigInt(newArr.length)) as T;
     }
 
-    return (sum / this.values.length) as T;
+    return (sum / newArr.length) as T;
   }
 }
