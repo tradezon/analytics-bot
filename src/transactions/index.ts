@@ -83,6 +83,7 @@ export async function getAllSwaps(
       approves++;
       continue;
     }
+    if (!tx.to) continue;
     filteredTx.push(tx);
   }
 
