@@ -5,7 +5,6 @@ import {
   WebSocketProvider
 } from 'ethers';
 import type { Report } from '../types';
-import { createPriceOracle, PriceOracle } from './price-oracle';
 import { Wallet } from './wallet';
 import { History, TokenHistory } from './history';
 import {
@@ -36,6 +35,7 @@ import { ComposeMetric } from '../utils/metrics/compose-metric';
 import { Counter } from '../utils/metrics/counter';
 import { MetricData } from '../utils/metrics/data';
 import { Median } from '../utils/metrics/median';
+import { PriceOracle } from '../oracles';
 
 export class AnalyticsEngine {
   private priceOracle: PriceOracle;
@@ -43,9 +43,10 @@ export class AnalyticsEngine {
 
   constructor(
     private provider: JsonRpcProvider | WebSocketProvider,
+    geckoApiToken: string,
     getETHPrice: () => Promise<string>
   ) {
-    this.priceOracle = createPriceOracle(provider);
+    this.priceOracle = new PriceOracle(provider, geckoApiToken);
     this.getETHPrice = retry(getETHPrice, { limit: 5, delayMs: 1_000 });
   }
 

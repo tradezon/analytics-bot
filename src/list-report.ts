@@ -8,6 +8,7 @@ import logger, { LogLevel } from './logger';
 import { AnalyticsEngine } from './analytics';
 import { getAllSwaps } from './transactions';
 import { Report } from './types';
+import { PNL2_USD } from './utils/const';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
 const _10Days = 10 * 24 * 60 * 60;
@@ -27,10 +28,14 @@ async function main() {
       })
     : new WebSocketProvider(config.etherium_mainnet);
   const etherscanApi = EtherscanApi.init('QMW2MPMAM4T9HWH3STPPK836GRWQX1QW3Q');
-  const analyticEngine = new AnalyticsEngine(provider, async () => {
-    const { result } = await etherscanApi.stats.ethprice();
-    return result.ethusd;
-  });
+  const analyticEngine = new AnalyticsEngine(
+    provider,
+    config.gecko,
+    async () => {
+      const { result } = await etherscanApi.stats.ethprice();
+      return result.ethusd;
+    }
+  );
   logger.level = LogLevel.debug;
   const latest = await provider.getBlock('latest');
   if (!latest) throw new Error('no latest block');
@@ -107,6 +112,12 @@ async function main() {
       if (!csv) {
         csv = `WALLET,${reportsArr[0].metrics.join(',')}`;
       }
+
+      const idx = reportsArr[0].metrics.findIndex((m) => m === PNL2_USD);
+      const val1 = reportsArr[0].metricValues[idx];
+      const val2 = reportsArr[1].metricValues[idx];
+      if (val2 <= -1_000 && val1 <= 0) continue;
+
       csvEntries10Days.push(
         [wallet, ...reportsArr[0].metricValues.map((v) => v.toFixed(2))].join(
           ','

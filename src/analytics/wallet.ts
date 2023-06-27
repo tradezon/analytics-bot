@@ -1,6 +1,4 @@
 import { formatEther, formatUnits } from 'ethers';
-import type { PriceOracle } from './price-oracle';
-import type { Report } from '../types';
 import {
   DAI_ADDRESS,
   STABLES,

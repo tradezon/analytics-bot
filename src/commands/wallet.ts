@@ -67,10 +67,11 @@ async function generateReport(
 export function wallet(
   bot: Telegraf,
   provider: JsonRpcProvider | WebSocketProvider,
+  geckoToken: string,
   getBlockNumber: () => number
 ): BaseScene<any> {
   const etherscanApi = EtherscanApi.init('QMW2MPMAM4T9HWH3STPPK836GRWQX1QW3Q');
-  const analyticEngine = new AnalyticsEngine(provider, async () => {
+  const analyticEngine = new AnalyticsEngine(provider, geckoToken, async () => {
     const { result } = await etherscanApi.stats.ethprice();
     return result.ethusd;
   });

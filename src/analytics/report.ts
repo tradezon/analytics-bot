@@ -5,7 +5,7 @@ import { getErc20TokenData, TokenData } from '../utils/get-erc20-token-data';
 import type { Report, TokenInfo } from '../types';
 import type { Wallet } from './wallet';
 import type { History } from './history';
-import type { PriceOracle } from './price-oracle';
+import type { PriceOracle } from '../oracles';
 import { Average } from '../utils/metrics/average';
 import { Accumulate } from '../utils/metrics/accumulate';
 import { HoneypotResult, isHoneypot } from '../honeypots';
@@ -67,19 +67,19 @@ export async function createReport(
         };
         if (balance > 0n) {
           // this token is left in wallet
-          let priceRate: bigint;
-          let honeypot = HoneypotResult.UNKNOWN;
-          try {
-            priceRate = await priceOracle(tokenHistory.token, t.decimals);
-          } catch (e: any) {
-            console.log(e.toString());
+          const priceUSD = await priceOracle.getPrice(
+            1,
+            tokenHistory.token,
+            t.decimals,
+            usdToEthPrice
+          );
+          if (!priceUSD) {
             res();
             return;
           }
+          let honeypot = HoneypotResult.UNKNOWN;
 
-          const priceETH = Number(formatUnits(priceRate, 18));
           const tokensBalance = Number(formatUnits(balance, t.decimals));
-          const priceUSD = priceETH * usdToEthPrice;
           const currentBalanceUSD = priceUSD * tokensBalance;
           result.balance = {
             value: balance,
@@ -124,7 +124,7 @@ export async function createReport(
 
           if (result.profitETH) {
             try {
-              const ethBalance = priceETH * tokensBalance;
+              const ethBalance = currentBalanceUSD / usdToEthPrice;
               tokenHistory.currentTokensBalanceETH(
                 parseEther(String(ethBalance))
               );
