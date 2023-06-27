@@ -32,10 +32,11 @@ export class PriceOracle {
     this._1inchAggregator = create1inchAggregator(provider);
   }
 
-  async getPrice(
+  async getPriceUSD(
     chainId: number,
     token: string,
     decimals: number,
+    tokenBalance: number,
     usdToEthPrice: number
   ): Promise<number | null> {
     const key = `${chainId}_${token}`;
@@ -54,7 +55,8 @@ export class PriceOracle {
       priceUSD = priceETH * usdToEthPrice;
     }
 
-    if (priceUSD && priceUSD <= 1) {
+    // TODO Should use liquidity to determine which check to perform
+    if (priceUSD && priceUSD <= 1 && tokenBalance * priceUSD < 10_000) {
       cache.set(key, priceUSD);
       return priceUSD;
     }

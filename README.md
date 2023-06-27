@@ -2,9 +2,9 @@
 
 ## TODOs
 
+- use current liquidity to understand which oracle to use for token price
 - think about multiple tokens swap, add more info in bot
 - fix swap detection regarding token taxes
-
 
 ### Used apis
 

@@ -33,7 +33,12 @@ export function createPriceOracle(apiKey?: string) {
     try {
       const response = await getDataWithRetry(id, token);
       if (!response.data) throw new Error('No coin gecko data');
-      const { usd } = Object.values(response.data)[0] as any;
+      const values = Object.values(response.data);
+      if (values.length === 0) {
+        logger.trace(`Price for ${token} was not observed`);
+        return null;
+      }
+      const { usd } = values[0] as any;
       return usd === undefined ? null : usd;
     } catch (e: AxiosError | any) {
       if (isAxiosError(e) && e.response) {

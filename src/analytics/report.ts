@@ -11,6 +11,8 @@ import { Accumulate } from '../utils/metrics/accumulate';
 import { HoneypotResult, isHoneypot } from '../honeypots';
 import { Counter } from '../utils/metrics/counter';
 import { MetricData } from '../utils/metrics/data';
+import logger from '../logger';
+import { saveBalance } from '../utils/save-balance';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -55,6 +57,11 @@ export async function createReport(
           res();
           return;
         }
+        amountOfTokens.inc();
+        amountInData.add(
+          tokenHistory.getInputUSD(usdToEthPrice),
+          tokenHistory.token
+        );
         const balance = walletState.balance(tokenHistory.token);
         const result: TokenInfo = {
           token: tokenHistory.token,
@@ -67,31 +74,34 @@ export async function createReport(
         };
         if (balance > 0n) {
           // this token is left in wallet
-          const priceUSD = await priceOracle.getPrice(
+          const tokensBalance = saveBalance(balance, t.decimals);
+          let honeypot = HoneypotResult.UNKNOWN;
+          let currentBalanceUSD = 0;
+          const priceUSD = await priceOracle.getPriceUSD(
             1,
             tokenHistory.token,
             t.decimals,
+            tokensBalance,
             usdToEthPrice
           );
-          if (!priceUSD) {
-            res();
-            return;
-          }
-          let honeypot = HoneypotResult.UNKNOWN;
 
-          const tokensBalance = Number(formatUnits(balance, t.decimals));
-          const currentBalanceUSD = priceUSD * tokensBalance;
+          logger.trace(
+            `Detecting price for ${t.token} with balance ${balance}`
+          );
+
+          if (priceUSD) {
+            currentBalanceUSD = priceUSD * tokensBalance;
+          }
           result.balance = {
             value: balance,
             usd: currentBalanceUSD
           };
 
-          if (currentBalanceUSD > 0) {
+          if (currentBalanceUSD > 0 || priceUSD === null) {
             try {
               honeypot = await isHoneypot(tokenHistory.token, 30_000);
             } catch (e: any) {
-              console.log(`Fail to detect honeypot for ${tokenHistory.token}`);
-              console.log(e.toString());
+              logger.warn(`Fail to detect honeypot for ${tokenHistory.token}`);
               res();
               return;
             }
@@ -117,6 +127,19 @@ export async function createReport(
             }
             case HoneypotResult.LOW_LIQUIDITY: {
               result.lowLiquidity = true;
+              if (priceUSD === null) {
+                report.honeypots = report.honeypots || {
+                  full: false,
+                  tokens: []
+                };
+                report.honeypots.tokens.push(result);
+                winRate.add(Number(result.profitUSD >= 0));
+                pnlUSD.add(result.profitUSD, tokenHistory.token);
+                pnlPercent.add(
+                  tokenHistory.getProfitInPercent(usdToEthPrice),
+                  tokenHistory.token
+                );
+              }
             }
             default:
               break;
@@ -147,11 +170,6 @@ export async function createReport(
         pnlUSD.add(result.profitUSD, tokenHistory.token);
         pnlPercent.add(
           tokenHistory.getProfitInPercent(usdToEthPrice),
-          tokenHistory.token
-        );
-        amountOfTokens.inc();
-        amountInData.add(
-          tokenHistory.getInputUSD(usdToEthPrice),
           tokenHistory.token
         );
         res();

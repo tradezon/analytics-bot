@@ -10,6 +10,7 @@ import {
   PNL_USD,
   WIN_RATE
 } from './const';
+import { saveBalance } from './save-balance';
 
 export const escape = (str: any) =>
   str
@@ -202,9 +203,7 @@ export function renderTokensList(
       ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
         `${
           balance
-            ? `${escape(
-                Number(formatUnits(balance.value, decimals)).toFixed(0)
-              )}`
+            ? `${escape(saveBalance(balance.value, decimals).toFixed(0))}`
             : ''
         }${hyperLink(etherscanAddressLink(token), escape(symbol))} ${escape(
           current

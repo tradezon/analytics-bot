@@ -24,7 +24,7 @@ const axios = Axios.create({
 
 // /v1/GetPairs?address=0x8da0e5b872aecc1d53633f540ae49a51d59007c9&chainID=1
 
-const retryGet = retry(axios.get.bind(axios), { limit: 3, delayMs: 5000 });
+const retryGet = retry(axios.get.bind(axios), { limit: 3, delayMs: 3000 });
 
 export async function isHoneypot(
   token: string,
