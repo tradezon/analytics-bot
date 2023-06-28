@@ -113,21 +113,27 @@ async function main() {
         csv = `WALLET,${reportsArr[0].metrics.join(',')}`;
       }
 
-      const idx = reportsArr[0].metrics.findIndex((m) => m === PNL2_USD);
-      const val1 = reportsArr[0].metricValues[idx];
-      const val2 = reportsArr[1].metricValues[idx];
-      if (val2 <= -1_000 && val1 <= 0) continue;
+      const idx = reportsArr[0]?.metrics.findIndex((m) => m === PNL2_USD);
+      if (idx) {
+        const val1 = reportsArr[0].metricValues[idx];
+        const val2 = reportsArr[1].metricValues[idx];
+        if (val2 <= -1_000 && val1 <= 0) continue;
+      }
 
-      csvEntries10Days.push(
-        [wallet, ...reportsArr[0].metricValues.map((v) => v.toFixed(2))].join(
-          ','
-        )
-      );
-      csvEntriesLatest.push(
-        [wallet, ...reportsArr[1].metricValues.map((v) => v.toFixed(2))].join(
-          ','
-        )
-      );
+      if (reportsArr[0]) {
+        csvEntries10Days.push(
+          [wallet, ...reportsArr[0].metricValues.map((v) => v.toFixed(2))].join(
+            ','
+          )
+        );
+      }
+      if (reportsArr[1]) {
+        csvEntriesLatest.push(
+          [wallet, ...reportsArr[1].metricValues.map((v) => v.toFixed(2))].join(
+            ','
+          )
+        );
+      }
     } catch (e: any) {
       logger.error(e);
     }
