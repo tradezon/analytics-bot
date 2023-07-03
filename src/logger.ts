@@ -27,7 +27,7 @@ const logger = getLog4jsLogger();
 
 export default logger;
 
-function formatLog<T extends string | number | boolean>(
+export function formatLog<T extends string | number | boolean>(
   obj: Record<string, T>
 ): string[] {
   return Object.keys(obj).map((k: string) => `${k}=${obj[k]}`);

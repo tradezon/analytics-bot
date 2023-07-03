@@ -13,6 +13,7 @@ import { Counter } from '../utils/metrics/counter';
 import { MetricData } from '../utils/metrics/data';
 import logger from '../logger';
 import { saveBalance } from '../utils/save-balance';
+import { getErc20TokenBalance } from '../utils/get-erc20-token-balance';
 
 const nanoid = customAlphabet('1234567890abcdef', 10);
 
@@ -72,28 +73,37 @@ export async function createReport(
           inWallet: false,
           lowLiquidity: false
         };
-        if (balance > 0n) {
+        let tokenBalance = await getErc20TokenBalance(
+          t.token,
+          wallet,
+          provider
+        );
+        tokenBalance = tokenBalance === null ? balance : tokenBalance;
+        if (tokenBalance > 0n) {
           // this token is left in wallet
-          const tokensBalance = saveBalance(balance, t.decimals);
+          const tokensBalanceFromHistory = saveBalance(
+            tokenBalance,
+            t.decimals
+          );
           let honeypot = HoneypotResult.UNKNOWN;
           let currentBalanceUSD = 0;
           const priceUSD = await priceOracle.getPriceUSD(
             1,
             tokenHistory.token,
             t.decimals,
-            tokensBalance,
+            tokensBalanceFromHistory,
             usdToEthPrice
           );
 
           logger.trace(
-            `Detecting price for ${t.token} with balance ${balance}`
+            `Detecting price for ${t.token} with balance ${tokenBalance}`
           );
 
           if (priceUSD) {
-            currentBalanceUSD = priceUSD * tokensBalance;
+            currentBalanceUSD = priceUSD * tokensBalanceFromHistory;
           }
           result.balance = {
-            value: balance,
+            value: tokenBalance,
             usd: currentBalanceUSD
           };
 
