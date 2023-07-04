@@ -194,7 +194,7 @@ export class AnalyticsEngine {
       amountOfTokens.compute(),
       medianInAmount.compute(),
       averageInAmount,
-      (pnl2OfTokensWithMoreThanAverageIn / pnl2) * 100,
+      pnl2OfTokensWithMoreThanAverageIn,
       Number(formatEther(feesEth.compute())) * usdToEthPrice
     ];
 

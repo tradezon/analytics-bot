@@ -101,9 +101,9 @@ function mapMetricsTypeToName(type: string, ...values: number[]) {
     case PNL_AVERAGE_PERCENT:
       return `*TOKEN PNL ${escape(values[0].toFixed(0))}%*`;
     case AMOUNT_IN_USD_AVG:
-      return `*AVG IN / % of PNL ${escape(values[0].toFixed(0))}$ \\(${escape(
-        values[1].toFixed(1)
-      )}%\\)*`;
+      return `*AVG IN ${escape(values[0].toFixed(0))}$ \\(${escape(
+        values[1].toFixed(0)
+      )}$ PNL\\)*`;
     case AMOUNT_IN_USD_MEDIAN:
       return `*MEDIAN IN ${escape(values[0].toFixed(0))}$*`;
     case PNL_USD:
