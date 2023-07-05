@@ -20,7 +20,7 @@ const blocksIn3Weeks = Math.ceil(
   (3 * 7 * 24 * 60 * 60) / AVERAGE_ETH_BLOCKTIME_SECONDS
 );
 const MAX_BLOCKS_FOR_STATS = blocksIn2Weeks * 7;
-const MIN_POSSIBLE_SWAPS = 250;
+const MIN_POSSIBLE_SWAPS = 201;
 
 export interface AllSwaps {
   swaps: TransactionSwap[];
@@ -73,9 +73,7 @@ export async function getAllSwaps(
   }
   if (!txs) return null;
 
-  const promises: Promise<
-    null | [TransactionResponse, TransactionReceipt, number]
-  >[] = [];
+  const promises: Promise<void>[] = [];
 
   let approves = 0;
   const filteredTx = [];
@@ -123,7 +121,7 @@ export async function getAllSwaps(
         try {
           const receipt = await provider.getTransactionReceipt(tx.hash);
           if (!receipt) {
-            res(null);
+            res();
             return;
           }
           const timestamp = Number(tx.timeStamp) * 1000;
@@ -133,8 +131,9 @@ export async function getAllSwaps(
             start = start ? Math.min(timestamp, start) : timestamp;
             swaps.push(swap);
           }
+          res();
         } catch {
-          res(null);
+          res();
         }
       })
     );

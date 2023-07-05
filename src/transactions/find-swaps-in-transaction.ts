@@ -2,6 +2,7 @@ import { AbiCoder, getAddress, zeroPadValue } from 'ethers';
 import type { TransactionReceipt, TransactionResponse, Log } from 'ethers';
 import logger from '../logger';
 import { retry } from '../utils/promise-retry';
+import { ratelimit } from '../utils/promise-ratelimit';
 
 export interface TransactionSwap {
   wallet: string;
@@ -27,25 +28,23 @@ async function getTransferredEther(
   wallet: string,
   txhash: string
 ): Promise<bigint> {
-  try {
-    const internalTxs = await etherscanApi.account.txlistinternal(txhash);
-    let value = 0n;
-    for (const tx of internalTxs.result) {
-      if (tx.isError === '0' && getAddress(tx.to) === wallet) {
-        value += BigInt(tx.value);
-      }
+  const internalTxs = await etherscanApi.account.txlistinternal(txhash);
+  let value = 0n;
+  for (const tx of internalTxs.result) {
+    if (tx.isError === '0' && getAddress(tx.to) === wallet) {
+      value += BigInt(tx.value);
     }
-    return value;
-  } catch (e: any) {
-    logger.error(e);
-    return 0n;
   }
+  return value;
 }
 
-const getTransferredEtherWithRetry = retry(getTransferredEther, {
-  limit: 5,
-  delayMs: 1_000
-});
+const getTransferredEtherWithRetry = ratelimit(
+  retry(getTransferredEther, {
+    limit: 3,
+    delayMs: 1_000
+  }),
+  { limit: 5, delayMs: 1_000 }
+);
 
 export async function findSwapsInTransaction(
   transaction: TransactionResponse,
@@ -106,19 +105,26 @@ export async function findSwapsInTransaction(
 
   if (swap.tokenIn.length === 0) return null;
 
-  const ether = await getTransferredEtherWithRetry(
-    etherscanApi,
-    getAddress(transaction.from),
-    transaction.hash
-  );
+  let ethers = 0n;
 
-  if (ether > 0n) {
+  try {
+    ethers = await getTransferredEtherWithRetry(
+      etherscanApi,
+      getAddress(transaction.from),
+      transaction.hash
+    );
+    logger.trace(`Got ${ethers} wei txhash=${transaction.hash}`);
+  } catch (e) {
+    logger.error(e);
+  }
+
+  if (ethers > 0n) {
     let i = swap.tokenOut.findIndex((t) => t === WETH_ADDRESS);
     if (i > -1) {
-      swap.amountOut[i] += ether;
+      swap.amountOut[i] += ethers;
     } else {
       swap.tokenOut.push(WETH_ADDRESS);
-      swap.amountOut.push(ether);
+      swap.amountOut.push(ethers);
     }
   }
 
