@@ -5,10 +5,12 @@ import {
   TransactionResponse,
   WebSocketProvider
 } from 'ethers';
-import { findSwapInTransactionReceipt } from '@tradezon/txswaps';
-import type { TransactionSwap } from '@tradezon/txswaps/dist/types';
 import { retry } from '../utils/promise-retry';
 import logger from '../logger';
+import {
+  findSwapsInTransaction,
+  TransactionSwap
+} from './find-swaps-in-transaction';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
 const blocksIn2Weeks = Math.ceil(
@@ -106,6 +108,9 @@ export async function getAllSwaps(
     }
   }
 
+  let start: number = 0;
+  const swaps: TransactionSwap[] = [];
+
   for (const tx of filteredTx) {
     promises.push(
       new Promise(async (res) => {
@@ -121,7 +126,13 @@ export async function getAllSwaps(
             res(null);
             return;
           }
-          res([ts, receipt, Number(tx.timeStamp) * 1000]);
+          const timestamp = Number(tx.timeStamp) * 1000;
+          logger.trace(`Finding swap for ${ts.hash}`);
+          const swap = await findSwapsInTransaction(ts, receipt, etherscanApi);
+          if (swap) {
+            start = start ? Math.min(timestamp, start) : timestamp;
+            swaps.push(swap);
+          }
         } catch {
           res(null);
         }
@@ -129,18 +140,7 @@ export async function getAllSwaps(
     );
   }
 
-  let start: number = 0;
-  const swaps: TransactionSwap[] = [];
-  for (const res of await Promise.all(promises)) {
-    if (!res) continue;
-    const [ts, tr, timestamp] = res;
-    logger.trace(`Finding swap for ${tr.hash}`);
-    const swap = findSwapInTransactionReceipt(ts, tr);
-    if (swap) {
-      start = start ? Math.min(timestamp, start) : timestamp;
-      swaps.push(swap);
-    }
-  }
+  await Promise.all(promises);
 
   return { start: start!, fees: approves * 3, swaps };
 }
