@@ -20,6 +20,7 @@ import fixture9 from './fixtures-tx/0xb7e7c48682878a3e846da89738db60df8900ee0dad
 // ETH -> PSYOP -> LOYAL
 import fixture10 from './fixtures-tx/0x457ff0395d05eab828a3d5601b2ff5fe367c477faf29c15338b38481d61d956a.json';
 import fixture11 from './fixtures-tx/0x9f31076662df5082428b7a60405e25fa8e93657f0d8358e3d04716fb2ee0ace9.json';
+import fixture12 from './fixtures-tx/0xac67ba6754e192157bdce5254d8cf8d4ea0991665d20faf36cffaab5e02e832c.json';
 
 const etherscanApi = EtherscanApi.init('QMW2MPMAM4T9HWH3STPPK836GRWQX1QW3Q');
 
@@ -133,6 +134,16 @@ const testCases: [any, TransactionSwap | null][] = [
       tokenOut: ['0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'],
       amountIn: [721126211683081053549862316n],
       amountOut: [parseEther('0.190869319057344711')]
+    }
+  ],
+  [
+    fixture12,
+    {
+      wallet: '0xB8Bd911aA8fa479758275Bab75d4E0eb91Ed7408',
+      tokenIn: ['0x320B52e25721E79cB9256C65099b9d057dAaa088'],
+      tokenOut: ['0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'],
+      amountIn: [20440041000000000n],
+      amountOut: [parseEther('0.471973421004104052')]
     }
   ]
 ];

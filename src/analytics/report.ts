@@ -69,7 +69,7 @@ export async function createReport(
           symbol: t.symbol,
           decimals: t.decimals,
           profitUSD: 0,
-          profitETH: undefined,
+          profitETH: tokenHistory.getProfitETH() || undefined,
           inWallet: false,
           lowLiquidity: false
         };
@@ -133,6 +133,11 @@ export async function createReport(
                 tokenHistory.token
               );
               res();
+              logger.trace(
+                `Trace analytics for honeypot ${
+                  tokenHistory.token
+                } with profit ${result.profitUSD.toFixed(1)}$`
+              );
               return;
             }
             case HoneypotResult.LOW_LIQUIDITY: {
@@ -159,7 +164,7 @@ export async function createReport(
             try {
               const ethBalance = currentBalanceUSD / usdToEthPrice;
               tokenHistory.currentTokensBalanceETH(
-                parseEther(String(ethBalance))
+                parseEther(ethBalance.toFixed(4))
               );
             } catch {
               tokenHistory.currentTokensBalanceUSD(currentBalanceUSD);
@@ -181,6 +186,11 @@ export async function createReport(
         pnlPercent.add(
           tokenHistory.getProfitInPercent(usdToEthPrice),
           tokenHistory.token
+        );
+        logger.trace(
+          `Trace analytics for ${
+            tokenHistory.token
+          } with profit ${result.profitUSD.toFixed(1)}$`
         );
         res();
       })

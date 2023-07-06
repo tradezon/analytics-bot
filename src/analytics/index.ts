@@ -71,6 +71,8 @@ export class AnalyticsEngine {
     const bannedTokens = new Set<string>();
     for (const swap of swaps) {
       feesEth.add(swap.fee);
+      // if (swap.tokenIn.some(t => t === '0x320B52e25721E79cB9256C65099b9d057dAaa088')) debugger;
+      // if (swap.tokenOut.some(t => t === '0x320B52e25721E79cB9256C65099b9d057dAaa088')) debugger;
       if (swap.tokenIn.length === 1 && swap.tokenOut.length === 1) {
         // track tokens
         history.push(swap);
