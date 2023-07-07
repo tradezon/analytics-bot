@@ -36,9 +36,10 @@ async function main() {
       return result.ethusd;
     }
   );
-  logger.level = LogLevel.debug;
+  logger.level = LogLevel.trace;
   const latest = await provider.getBlock('latest');
   if (!latest) throw new Error('no latest block');
+  const now = Date.now() / 1000 / 60;
   const blockEnd = latest?.number;
   const block10DaysStart = blockEnd - blocksIn10Days;
   const block3WeeksStart = blockEnd - blocksIn3Weeks;
@@ -87,6 +88,8 @@ async function main() {
         );
       }
 
+      logger.debug('Report for 10 days was made');
+
       const allSwaps = await getAllSwaps(
         wallet,
         etherscanApi,
@@ -122,16 +125,18 @@ async function main() {
 
       if (reportsArr[0]) {
         csvEntries10Days.push(
-          [wallet, ...reportsArr[0].metricValues.map((v) => v.toFixed(2))].join(
-            ','
-          )
+          [
+            wallet,
+            ...reportsArr[0].metricValues.map((v) => v && v.toFixed(2))
+          ].join(',')
         );
       }
       if (reportsArr[1]) {
         csvEntriesLatest.push(
-          [wallet, ...reportsArr[1].metricValues.map((v) => v.toFixed(2))].join(
-            ','
-          )
+          [
+            wallet,
+            ...reportsArr[1].metricValues.map((v) => v && v.toFixed(2))
+          ].join(',')
         );
       }
     } catch (e: any) {
@@ -146,6 +151,11 @@ async function main() {
   await fs.promises.writeFile(path.resolve(dataDir, `10days.csv`), csv10);
   clearTimeout(t);
   provider.destroy();
+  const end = Date.now() / 1000 / 60;
+  let minutes = now - end;
+  const hours = Math.floor(minutes / 60);
+  minutes = Math.round(minutes % 60);
+  console.log(`Elapsed time ${hours}h ${minutes}m`);
 }
 
 main();
