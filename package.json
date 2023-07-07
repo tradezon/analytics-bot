@@ -3,9 +3,10 @@
   "scripts": {
     "pretty": "prettier --config .prettierrc 'src/**/*.ts'",
     "type": "tsc --noEmit",
-    "build": "yarn build:bot && yarn build:script",
+    "build": "yarn build:bot && yarn build:script && yarn build:swaps",
     "build:bot": "esbuild ./src/main.ts --platform=node --bundle --external:sqlite3 --outfile=./dir/bot.js",
     "build:script": "esbuild ./src/list-report.ts --platform=node --bundle --external:sqlite3 --outfile=./dir/script.js",
+    "build:swaps": "esbuild ./src/listen-swaps.ts --platform=node --bundle --external:sqlite3 --outfile=./dir/listen.js",
     "test": "jest"
   },
   "dependencies": {

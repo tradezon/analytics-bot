@@ -143,7 +143,7 @@ function findUniswapsInTransaction(
 export async function findSwapsInTransaction(
   transaction: TransactionResponse,
   receipt: TransactionReceipt,
-  etherscanApi: any
+  etherscanApi?: any
 ): Promise<TransactionSwap | null> {
   if (!transaction.to) return null;
   if (
@@ -206,15 +206,17 @@ export async function findSwapsInTransaction(
 
   let ethers = 0n;
 
-  try {
-    ethers = await getTransferredEtherWithRetry(
-      etherscanApi,
-      getAddress(transaction.from),
-      transaction.hash
-    );
-    logger.trace(`Got ${ethers} wei txhash=${transaction.hash}`);
-  } catch (e) {
-    logger.error(e);
+  if (etherscanApi) {
+    try {
+      ethers = await getTransferredEtherWithRetry(
+        etherscanApi,
+        getAddress(transaction.from),
+        transaction.hash
+      );
+      logger.trace(`Got ${ethers} wei txhash=${transaction.hash}`);
+    } catch (e) {
+      logger.error(e);
+    }
   }
 
   if (ethers > 0n) {

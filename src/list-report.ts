@@ -155,7 +155,7 @@ async function main() {
   let minutes = now - end;
   const hours = Math.floor(minutes / 60);
   minutes = Math.round(minutes % 60);
-  console.log(`Elapsed time ${hours}h ${minutes}m`);
+  logger.info(`Elapsed time ${hours}h ${minutes}m`);
 }
 
 main();

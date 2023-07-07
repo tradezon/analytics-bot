@@ -165,7 +165,7 @@ ${
   ];
 }
 
-function header(report: Report) {
+export function header(report: Report) {
   const metrics = report.metrics
     .map((m, i) =>
       m === AMOUNT_IN_USD_AVG
