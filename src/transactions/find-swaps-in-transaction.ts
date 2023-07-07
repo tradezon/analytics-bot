@@ -35,7 +35,16 @@ async function getTransferredEther(
   wallet: string,
   txhash: string
 ): Promise<bigint> {
-  const internalTxs = await etherscanApi.account.txlistinternal(txhash);
+  let internalTxs: any;
+  try {
+    internalTxs = await etherscanApi.account.txlistinternal(txhash);
+  } catch (e: any) {
+    if (e.toString() !== 'No transactions found') {
+      throw e;
+    } else {
+      return 0n;
+    }
+  }
   let value = 0n;
   for (const tx of internalTxs.result) {
     if (tx.isError === '0' && getAddress(tx.to) === wallet) {
