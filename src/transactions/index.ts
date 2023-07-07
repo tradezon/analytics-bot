@@ -11,6 +11,7 @@ import {
   findSwapsInTransaction,
   TransactionSwap
 } from './find-swaps-in-transaction';
+import { isContract } from './is-contract';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
 const blocksIn2Weeks = Math.ceil(
@@ -117,10 +118,17 @@ export async function getAllSwaps(
     const tx = filteredTx[i];
     promises.push(
       new Promise(async (res) => {
+        const to = getAddress(tx.to);
+        /* check is target a contract */
+        if (tx.functionName === '' && !(await isContract(to, provider))) {
+          res();
+          return;
+        }
+
         const ts = {
           hash: tx.hash,
           from: wallet,
-          to: getAddress(tx.to),
+          to,
           value: BigInt(tx.value)
         } as unknown as TransactionResponse;
         try {
