@@ -1,6 +1,7 @@
 // @ts-expect-error
 import EtherscanApi from 'etherscan-api';
 import {
+  formatUnits,
   JsonRpcProvider,
   parseEther,
   TransactionReceipt,
@@ -15,16 +16,23 @@ import { getAllSwaps } from './transactions';
 import { Report } from './types';
 import { AMOUNT_OF_TOKENS, PNL2_USD } from './utils/const';
 import { findSwapsInTransaction } from './transactions/find-swaps-in-transaction';
-import { STABLES, WETH_ADDRESS } from './analytics/const';
+import {
+  DAI_ADDRESS,
+  STABLES,
+  USDC_ADDRESS,
+  USDT_ADDRESS,
+  WETH_ADDRESS
+} from './analytics/const';
 import { sendMessage } from './utils/telegram-send-message';
 import { header } from './utils/telegram';
 import { LRUCache } from 'lru-cache';
+import { isContract } from './transactions/is-contract';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
-const _15Days = 15 * 24 * 60 * 60;
-const blocksIn15Days = Math.ceil(_15Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
+const _10Days = 10 * 24 * 60 * 60;
+const blocksIn10Days = Math.ceil(_10Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
 
-const cache = new LRUCache<string, number>({
+const cache = new LRUCache<string, Report>({
   max: 4000,
   ttl: 24 * 60 * 60 * 1000, // 1 day,
   ttlAutopurge: false,
@@ -34,11 +42,11 @@ const cache = new LRUCache<string, number>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('3'),
-  MIN_USD: 5000,
-  MAX_AMOUNT_OF_TOKENS: 60,
-  BLOCKS: blocksIn15Days,
-  MIN_PNL: 4500
+  MIN_ETH: parseEther('2'),
+  MIN_USD: 3500,
+  MAX_AMOUNT_OF_TOKENS: 50,
+  BLOCKS: blocksIn10Days,
+  MIN_PNL: 4900
 };
 
 const pnl2FromReport = (report: Report): number | null => {
@@ -53,8 +61,19 @@ const amountOfTokensReport = (report: Report): number | null => {
   return null;
 };
 
+const getInputUSD = (amount: bigint, token: string) => {
+  switch (token) {
+    case DAI_ADDRESS:
+      return Number(formatUnits(amount, 18));
+    case USDC_ADDRESS:
+    case USDT_ADDRESS:
+      return Number(formatUnits(amount, 6));
+    default:
+      return 0;
+  }
+};
+
 async function main() {
-  const t = setTimeout(() => {}, 2 * 60 * 60 * 1000);
   const config = await readConfig(
     process.argv[2] || path.resolve(__dirname, 'config.json')
   );
@@ -73,7 +92,7 @@ async function main() {
     }
   );
   logger.level = LogLevel.debug;
-  const onFLy = new Set<string>();
+  const onFly = new Set<string>();
 
   const processTransaction = async (txhash: string, timestamp: number) => {
     const [tx, receipt]: [
@@ -85,27 +104,25 @@ async function main() {
     ]);
     if (!receipt || !tx || !tx.blockNumber) return;
     if (receipt.logs.length < 3) return;
-    if (onFLy.has(tx.from)) return;
-    onFLy.add(tx.from);
+    if (await isContract(tx.from, provider)) return;
     const swap = await findSwapsInTransaction(tx, receipt);
-    onFLy.delete(tx.from);
     if (!swap || swap.tokenOut.length > 1 || swap.tokenIn.length > 1) return;
+    const tokenIn = swap.tokenIn[0];
+    const tokenOut = swap.tokenOut[0];
+    const amountIn = swap.amountIn[0];
     // if token in is not stable/weth or token out is stable/weth skip it
-    if (
-      !swap.tokenIn.some((s) => STABLES.has(s)) ||
-      swap.tokenOut.some((s) => STABLES.has(s))
-    )
-      return;
-
-    if (cache.has(tx.from)) return;
+    if (!STABLES.has(tokenIn) || STABLES.has(tokenOut)) return;
 
     /* check amount in */
-    if (swap.tokenIn[0] === WETH_ADDRESS && swap.amountIn[0] < SETTINGS.MIN_ETH)
-      return;
-    if (swap.amountIn[0] < SETTINGS.MIN_USD) return;
+    if (tokenIn === WETH_ADDRESS && amountIn < SETTINGS.MIN_ETH) return;
+    if (getInputUSD(amountIn, tokenIn) < SETTINGS.MIN_USD) return;
 
     /* ready for analytics */
     const wallet = tx.from;
+
+    if (cache.has(wallet) || onFly.has(wallet)) return;
+    onFly.add(wallet);
+
     const blockEnd = tx.blockNumber - SETTINGS.BLOCKS;
     logger.debug(
       `block=${tx.blockNumber}. Creating report for address ${wallet}`
@@ -120,7 +137,7 @@ async function main() {
     if (!allSwaps) return;
     const report = await analyticEngine.execute(
       wallet,
-      [(timestamp - _15Days) * 1000, timestamp * 1000],
+      [(timestamp - _10Days) * 1000, timestamp * 1000],
       allSwaps
     );
 
@@ -128,7 +145,8 @@ async function main() {
       `block=${tx.blockNumber}. Report for address ${wallet} is ready`
     );
 
-    cache.set(wallet, Date.now());
+    cache.set(wallet, report);
+    onFly.delete(wallet);
 
     const pnl = pnl2FromReport(report);
     if (!pnl || pnl < SETTINGS.MIN_PNL) return;
