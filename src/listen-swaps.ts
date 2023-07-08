@@ -115,8 +115,9 @@ async function main() {
     if (!STABLES.has(tokenIn) || STABLES.has(tokenOut)) return;
 
     /* check amount in */
-    if (tokenIn === WETH_ADDRESS && amountIn < SETTINGS.MIN_ETH) return;
-    if (getInputUSD(amountIn, tokenIn) < SETTINGS.MIN_USD) return;
+    if (tokenIn === WETH_ADDRESS) {
+      if (amountIn < SETTINGS.MIN_ETH) return;
+    } else if (getInputUSD(amountIn, tokenIn) < SETTINGS.MIN_USD) return;
 
     /* ready for analytics */
     const wallet = tx.from;
