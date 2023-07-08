@@ -43,9 +43,9 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('0.95'),
-  MIN_USD: 1800,
-  MAX_AMOUNT_OF_TOKENS: 50,
+  MIN_ETH: parseEther('1.45'),
+  MIN_USD: 2500,
+  MAX_AMOUNT_OF_TOKENS: 60,
   BLOCKS: blocksIn12Days,
   MIN_PNL: 4900
 };
@@ -122,7 +122,20 @@ async function main() {
     /* ready for analytics */
     const wallet = tx.from;
 
-    if (cache.has(wallet) || onFly.has(wallet)) return;
+    if (cache.has(wallet)) {
+      const report = cache.get(wallet) as Report;
+      try {
+        await sendMessage(
+          '-1001714973372',
+          config.token,
+          `новый кошелек ${wallet}\nстатистика за 15 дней\n${header(report)}`
+        );
+      } catch (e: any) {
+        logger.error(e);
+      }
+      return;
+    }
+    if (onFly.has(wallet)) return;
     onFly.add(wallet);
 
     const blockEnd = tx.blockNumber - SETTINGS.BLOCKS;
