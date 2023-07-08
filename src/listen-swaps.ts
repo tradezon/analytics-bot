@@ -27,10 +27,11 @@ import { sendMessage } from './utils/telegram-send-message';
 import { header } from './utils/telegram';
 import { LRUCache } from 'lru-cache';
 import { isContract } from './transactions/is-contract';
+import { isErc20Token } from './transactions/is-erc20-token';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
-const _10Days = 10 * 24 * 60 * 60;
-const blocksIn10Days = Math.ceil(_10Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
+const _12Days = 12 * 24 * 60 * 60;
+const blocksIn12Days = Math.ceil(_12Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
 
 const cache = new LRUCache<string, Report>({
   max: 4000,
@@ -42,10 +43,10 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('2'),
-  MIN_USD: 3500,
+  MIN_ETH: parseEther('0.95'),
+  MIN_USD: 1800,
   MAX_AMOUNT_OF_TOKENS: 50,
-  BLOCKS: blocksIn10Days,
+  BLOCKS: blocksIn12Days,
   MIN_PNL: 4900
 };
 
@@ -102,7 +103,7 @@ async function main() {
       provider.getTransaction(txhash),
       provider.getTransactionReceipt(txhash)
     ]);
-    if (!receipt || !tx || !tx.blockNumber) return;
+    if (!receipt || !tx || !tx.to || !tx.blockNumber) return;
     if (receipt.logs.length < 3) return;
     if (await isContract(tx.from, provider)) return;
     const swap = await findSwapsInTransaction(tx, receipt);
@@ -137,7 +138,7 @@ async function main() {
     if (!allSwaps) return;
     const report = await analyticEngine.execute(
       wallet,
-      [(timestamp - _10Days) * 1000, timestamp * 1000],
+      [(timestamp - _12Days) * 1000, timestamp * 1000],
       allSwaps
     );
 
