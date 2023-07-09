@@ -59,7 +59,7 @@ const getTransferredEtherWithRetry = ratelimit(
     limit: 3,
     delayMs: 1_000
   }),
-  { limit: 8, delayMs: 1_000 }
+  { limit: 4, delayMs: 1_000 }
 );
 
 function findUniswapsInTransaction(

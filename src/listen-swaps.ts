@@ -14,7 +14,7 @@ import logger, { LogLevel } from './logger';
 import { AnalyticsEngine } from './analytics';
 import { getAllSwaps } from './transactions';
 import { Report } from './types';
-import { AMOUNT_OF_TOKENS, PNL2_USD } from './utils/const';
+import {AMOUNT_OF_TOKENS, PNL2_USD, PNL_USD} from './utils/const';
 import { findSwapsInTransaction } from './transactions/find-swaps-in-transaction';
 import {
   DAI_ADDRESS,
@@ -43,8 +43,8 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('1.45'),
-  MIN_USD: 2500,
+  MIN_ETH: parseEther('2'),
+  MIN_USD: 3500,
   MAX_AMOUNT_OF_TOKENS: 60,
   BLOCKS: blocksIn12Days,
   MIN_PNL: 4900
@@ -52,6 +52,12 @@ const SETTINGS = {
 
 const pnl2FromReport = (report: Report): number | null => {
   const i = report.metrics.indexOf(PNL2_USD);
+  if (i > -1) return report.metricValues[i];
+  return null;
+};
+
+const pnlFromReport = (report: Report): number | null => {
+  const i = report.metrics.indexOf(PNL_USD);
   if (i > -1) return report.metricValues[i];
   return null;
 };
@@ -163,8 +169,10 @@ async function main() {
     cache.set(wallet, report);
     onFly.delete(wallet);
 
-    const pnl = pnl2FromReport(report);
-    if (!pnl || pnl < SETTINGS.MIN_PNL) return;
+    const pnl2 = pnl2FromReport(report);
+    const pnl = pnlFromReport(report);
+    if (pnl2 === 0 && pnl !== pnl2) return;
+    if (!pnl2 || pnl2 < SETTINGS.MIN_PNL) return;
     const amountOfTokens = amountOfTokensReport(report);
     if (!amountOfTokens || amountOfTokens > SETTINGS.MAX_AMOUNT_OF_TOKENS)
       return;
