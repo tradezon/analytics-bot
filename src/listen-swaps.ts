@@ -14,7 +14,7 @@ import logger, { LogLevel } from './logger';
 import { AnalyticsEngine } from './analytics';
 import { getAllSwaps } from './transactions';
 import { Report } from './types';
-import {AMOUNT_OF_TOKENS, PNL2_USD, PNL_USD} from './utils/const';
+import { AMOUNT_OF_TOKENS, PNL2_USD, PNL_USD } from './utils/const';
 import { findSwapsInTransaction } from './transactions/find-swaps-in-transaction';
 import {
   DAI_ADDRESS,

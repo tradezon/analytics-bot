@@ -4,7 +4,10 @@ import { formatUnits } from 'ethers';
 import {
   AMOUNT_IN_USD_AVG,
   AMOUNT_IN_USD_MEDIAN,
+  AMOUNT_OF_SWAPS,
+  AMOUNT_OF_TOKENS,
   FEES,
+  PNL2_USD,
   PNL_AVERAGE_PERCENT,
   PNL_OF_TOKENS_WITH_AMOUNT_IN_MORE_THAN_AVG,
   PNL_USD,
@@ -64,12 +67,6 @@ function renderX(x?: string) {
   return `${escape(x)}x ${xValue(x)}`;
 }
 
-function renderInlineTokens(tokens: TokenInfo[]) {
-  return tokens
-    .map(({ token, symbol }) => hyperLink(etherscanAddressLink(token), symbol))
-    .join('\\, ');
-}
-
 function divideTokensWithLossThreshold(
   tokens: TokenInfo[],
   threshold: number
@@ -108,8 +105,14 @@ function mapMetricsTypeToName(type: string, ...values: number[]) {
       return `*MEDIAN IN ${escape(values[0].toFixed(0))}$*`;
     case PNL_USD:
       return `*PNL ${escape(values[0].toFixed(0))}$*`;
+    case PNL2_USD:
+      return `*PNL2 ${escape(values[0].toFixed(0))}$*`;
     case FEES:
       return `*fees ${escape(values[0].toFixed(0))}$*`;
+    case AMOUNT_OF_TOKENS:
+      return `*TOKENS ${values[0]}*`;
+    case AMOUNT_OF_SWAPS:
+      return `*SWAPS ${values[0]}*`;
     default:
       return null;
   }
@@ -160,7 +163,15 @@ ${
         )
         .join('\n')}`
     : ''
-}`,
+}${
+      report.tokensInMultiTokensSwaps.length > 0
+        ? `\n🧮 *Tokens in multitokens swaps*:\n${report.tokensInMultiTokensSwaps
+            .map(({ token, symbol }) =>
+              hyperLink(etherscanAddressLink(token), escape(symbol))
+            )
+            .join('\\, ')}`
+        : ''
+    }`,
     -loss
   ];
 }

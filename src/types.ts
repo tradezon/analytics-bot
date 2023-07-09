@@ -1,9 +1,12 @@
-export interface TokenInfo {
-  inWallet: boolean;
-  lowLiquidity: boolean;
+interface BasicTokenInfo {
   token: string;
   decimals: number;
   symbol: string;
+}
+
+export interface TokenInfo extends BasicTokenInfo {
+  inWallet: boolean;
+  lowLiquidity: boolean;
   profitUSD: number;
   balance?: { usd: number; value: bigint };
   profitETH?: { value: number; x?: string };
@@ -13,6 +16,7 @@ export interface Report {
   id: string;
   period: [number, number];
   tokens: Array<TokenInfo>;
+  tokensInMultiTokensSwaps: BasicTokenInfo[];
   tokensInWallet: number;
   honeypots?: {
     full: boolean;

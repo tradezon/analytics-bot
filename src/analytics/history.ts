@@ -30,7 +30,7 @@ export class TokenHistory {
   private _USDT = 0n; // 6 decimals
   private _USDC = 0n; // 6 decimals
   private _DAI = 0n; // 18 decimals
-  constructor(public token: string) {}
+  constructor(public token: string, public multiple: boolean = false) {}
 
   get swaps() {
     return this._swaps;
@@ -215,6 +215,15 @@ export class History {
     const r = this.map.get(token);
     this.map.delete(token);
     return r;
+  }
+
+  multiple(token: string) {
+    let history = this.map.get(token);
+    if (!history) {
+      history = new TokenHistory(token);
+      this.map.set(token, history);
+    }
+    history.multiple = true;
   }
 
   token(token: string) {

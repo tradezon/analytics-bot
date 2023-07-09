@@ -69,6 +69,7 @@ export class AnalyticsEngine {
     const pnlPercent = new Average<number>(PNL_AVERAGE_PERCENT);
     const feesEth = new Accumulate<bigint>(FEES);
     const bannedTokens = new Set<string>();
+    const tokensInMultipleTokensSwaps = new Set<string>();
     for (const swap of swaps) {
       feesEth.add(swap.fee);
       // if (swap.tokenIn.some(t => t === '0x320B52e25721E79cB9256C65099b9d057dAaa088')) debugger;
@@ -86,52 +87,67 @@ export class AnalyticsEngine {
           walletState.deposit(swap.tokenOut[0], swap.amountOut[0]);
         }
       } else {
-        // multiple entries
-        const tokenHistory = new TokenHistory('');
+        // multiple entries stables
+        const tokenHistoryForStables = new TokenHistory('');
         for (let i = 0; i < swap.tokenIn.length; i++) {
-          if (STABLES.has(swap.tokenIn[i])) {
-            const amount = swap.amountIn[i];
-            switch (swap.tokenIn[i]) {
+          const tokenIn = swap.tokenIn[i];
+          const amount = swap.amountIn[i];
+          if (STABLES.has(tokenIn)) {
+            switch (tokenIn) {
               case WETH_ADDRESS: {
-                tokenHistory.depositForETH(amount);
+                tokenHistoryForStables.depositForETH(amount);
                 break;
               }
               case USDT_ADDRESS: {
-                tokenHistory.depositForUSDT(amount);
+                tokenHistoryForStables.depositForUSDT(amount);
                 break;
               }
               case USDC_ADDRESS: {
-                tokenHistory.depositForUSDC(amount);
+                tokenHistoryForStables.depositForUSDC(amount);
                 break;
               }
               case DAI_ADDRESS: {
-                tokenHistory.depositForDAI(amount);
+                tokenHistoryForStables.depositForDAI(amount);
                 break;
               }
             }
-          } else if (STABLES.has(swap.tokenOut[i])) {
-            const amount = swap.amountOut[i];
-            switch (swap.tokenOut[i]) {
-              case WETH_ADDRESS: {
-                tokenHistory.withdrawForETH(amount);
-                break;
-              }
-              case USDT_ADDRESS: {
-                tokenHistory.withdrawForUSDT(amount);
-                break;
-              }
-              case USDC_ADDRESS: {
-                tokenHistory.withdrawForUSDC(amount);
-                break;
-              }
-              case DAI_ADDRESS: {
-                tokenHistory.withdrawForDAI(amount);
-                break;
-              }
-            }
+          } else {
+            walletState.withdraw(tokenIn, amount);
+            history.multiple(tokenIn);
+            tokensInMultipleTokensSwaps.add(tokenIn);
           }
         }
-        pnlUSD.add(tokenHistory.getProfitUSD(usdToEthPrice));
+
+        for (let i = 0; i < swap.tokenOut.length; i++) {
+          const tokenOut = swap.tokenOut[i];
+          const amount = swap.amountOut[i];
+          if (STABLES.has(tokenOut)) {
+            switch (tokenOut) {
+              case WETH_ADDRESS: {
+                tokenHistoryForStables.withdrawForETH(amount);
+                break;
+              }
+              case USDT_ADDRESS: {
+                tokenHistoryForStables.withdrawForUSDT(amount);
+                break;
+              }
+              case USDC_ADDRESS: {
+                tokenHistoryForStables.withdrawForUSDC(amount);
+                break;
+              }
+              case DAI_ADDRESS: {
+                tokenHistoryForStables.withdrawForDAI(amount);
+                break;
+              }
+            }
+          } else {
+            walletState.deposit(tokenOut, amount);
+            history.multiple(tokenOut);
+            tokensInMultipleTokensSwaps.add(tokenOut);
+          }
+        }
+
+        pnlUSD.add(tokenHistoryForStables.getProfitUSD(usdToEthPrice));
       }
       amountOfSwaps.inc();
     }

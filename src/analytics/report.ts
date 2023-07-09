@@ -1,5 +1,5 @@
 import type { JsonRpcProvider, WebSocketProvider } from 'ethers';
-import { formatUnits, parseEther } from 'ethers';
+import { parseEther } from 'ethers';
 import { customAlphabet } from 'nanoid';
 import { getErc20TokenData, TokenData } from '../utils/get-erc20-token-data';
 import type { Report, TokenInfo } from '../types';
@@ -36,6 +36,7 @@ export async function createReport(
     period,
     address: wallet,
     tokens: [],
+    tokensInMultiTokensSwaps: [],
     tokensInWallet: 0,
     metrics: [],
     metricValues: []
@@ -126,7 +127,7 @@ export async function createReport(
               };
               report.honeypots.tokens.push(result);
               result.profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
-              winRate.add(0);
+              winRate.add(Number(result.profitUSD >= 0));
               pnlUSD.add(result.profitUSD, tokenHistory.token);
               pnlPercent.add(
                 tokenHistory.getProfitInPercent(usdToEthPrice),
@@ -181,12 +182,20 @@ export async function createReport(
         result.profitETH = tokenHistory.getProfitETH() || undefined;
 
         report.tokens.push(result);
-        winRate.add(Number(result.profitUSD >= 0));
         pnlUSD.add(result.profitUSD, tokenHistory.token);
-        pnlPercent.add(
-          tokenHistory.getProfitInPercent(usdToEthPrice),
-          tokenHistory.token
-        );
+        if (!tokenHistory.multiple) {
+          winRate.add(Number(result.profitUSD >= 0));
+          pnlPercent.add(
+            tokenHistory.getProfitInPercent(usdToEthPrice),
+            tokenHistory.token
+          );
+        } else {
+          report.tokensInMultiTokensSwaps.push({
+            token: tokenHistory.token,
+            symbol: t.symbol,
+            decimals: t.decimals
+          });
+        }
         logger.trace(
           `Trace analytics for ${
             tokenHistory.token
