@@ -14,7 +14,13 @@ import logger, { LogLevel } from './logger';
 import { AnalyticsEngine } from './analytics';
 import { getAllSwaps } from './transactions';
 import { Report } from './types';
-import { AMOUNT_OF_TOKENS, PNL2_USD, PNL_USD } from './utils/const';
+import {
+  AMOUNT_OF_TOKENS,
+  PNL2_USD,
+  PNL_AVERAGE_PERCENT,
+  PNL_USD,
+  WIN_RATE
+} from './utils/const';
 import { findSwapsInTransaction } from './transactions/find-swaps-in-transaction';
 import {
   DAI_ADDRESS,
@@ -43,11 +49,16 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('2'),
-  MIN_USD: 3500,
+  MIN_ETH: parseEther('0.8'),
+  MIN_USD: 1000,
+  MAX_ETH: parseEther('1.5'),
+  MAX_USD: 2500,
   MAX_AMOUNT_OF_TOKENS: 60,
   BLOCKS: blocksIn12Days,
-  MIN_PNL: 4900
+  MIN_TOKEN_PNL: 9,
+  MIN_WINRATE: 0.41,
+  MIN_PNL: 7000,
+  MAX_SWAPS: 170
 };
 
 const pnl2FromReport = (report: Report): number | null => {
@@ -58,6 +69,18 @@ const pnl2FromReport = (report: Report): number | null => {
 
 const pnlFromReport = (report: Report): number | null => {
   const i = report.metrics.indexOf(PNL_USD);
+  if (i > -1) return report.metricValues[i];
+  return null;
+};
+
+const tokenPnlFromReport = (report: Report): number | null => {
+  const i = report.metrics.indexOf(PNL_AVERAGE_PERCENT);
+  if (i > -1) return report.metricValues[i];
+  return null;
+};
+
+const winrateFromReport = (report: Report): number | null => {
+  const i = report.metrics.indexOf(WIN_RATE);
   if (i > -1) return report.metricValues[i];
   return null;
 };
@@ -122,23 +145,26 @@ async function main() {
 
     /* check amount in */
     if (tokenIn === WETH_ADDRESS) {
-      if (amountIn < SETTINGS.MIN_ETH) return;
-    } else if (getInputUSD(amountIn, tokenIn) < SETTINGS.MIN_USD) return;
+      if (amountIn < SETTINGS.MIN_ETH || amountIn > SETTINGS.MAX_ETH) return;
+    } else {
+      const input = getInputUSD(amountIn, tokenIn);
+      if (input < SETTINGS.MIN_USD || input > SETTINGS.MAX_USD) return;
+    }
 
     /* ready for analytics */
     const wallet = tx.from;
 
     if (cache.has(wallet)) {
-      const report = cache.get(wallet) as Report;
-      try {
-        await sendMessage(
-          '-1001714973372',
-          config.token,
-          `новый кошелек ${wallet}\nстатистика за 15 дней\n${header(report)}`
-        );
-      } catch (e: any) {
-        logger.error(e);
-      }
+      // const report = cache.get(wallet) as Report;
+      // try {
+      //   await sendMessage(
+      //     '-1001714973372',
+      //     config.token,
+      //     `новый кошелек ${wallet}\nстатистика за 15 дней\n${header(report)}`
+      //   );
+      // } catch (e: any) {
+      //   logger.error(e);
+      // }
       return;
     }
     if (onFly.has(wallet)) return;
@@ -153,7 +179,8 @@ async function main() {
       etherscanApi,
       provider,
       blockEnd,
-      tx.blockNumber
+      tx.blockNumber,
+      SETTINGS.MAX_SWAPS
     );
     if (!allSwaps) return;
     const report = await analyticEngine.execute(
@@ -171,12 +198,16 @@ async function main() {
 
     const pnl2 = pnl2FromReport(report);
     const pnl = pnlFromReport(report);
+    const winrate = winrateFromReport(report);
+    const tokenPnl = tokenPnlFromReport(report);
     if (pnl2 === 0 && pnl !== pnl2) return;
     if (!pnl2 || pnl2 < SETTINGS.MIN_PNL) return;
     const amountOfTokens = amountOfTokensReport(report);
     if (!amountOfTokens || amountOfTokens > SETTINGS.MAX_AMOUNT_OF_TOKENS)
       return;
     if (amountOfTokens === 1) return;
+    if (tokenPnl && tokenPnl < SETTINGS.MIN_TOKEN_PNL) return;
+    if (winrate && winrate < SETTINGS.MIN_WINRATE) return;
 
     try {
       await sendMessage(

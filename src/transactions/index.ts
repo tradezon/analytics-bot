@@ -12,6 +12,7 @@ import {
   TransactionSwap
 } from './find-swaps-in-transaction';
 import { isContract } from './is-contract';
+import invariant from 'invariant';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
 const blocksIn2Weeks = Math.ceil(
@@ -67,8 +68,13 @@ export async function getAllSwaps(
   etherscanApi: any,
   provider: JsonRpcProvider | WebSocketProvider,
   blockStart: number,
-  blockEnd?: number
+  blockEnd?: number,
+  maxSwaps?: number
 ): Promise<AllSwaps | null> {
+  invariant(
+    !maxSwaps || blockEnd !== undefined,
+    'max swaps could work only with fix range'
+  );
   let txs: Array<any>;
   try {
     txs = await txListWithRetry(etherscanApi, wallet, blockStart, blockEnd);
@@ -110,6 +116,8 @@ export async function getAllSwaps(
       return getAllSwaps(wallet, etherscanApi, provider, newStart);
     }
   }
+
+  if (maxSwaps && filteredTx.length > maxSwaps) return null;
 
   let start: number = 0;
   const swaps: Swap[] = [];
