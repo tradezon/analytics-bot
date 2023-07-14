@@ -49,14 +49,14 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('0.8'),
+  MIN_ETH: parseEther('0.5'),
   MIN_USD: 1000,
-  MAX_ETH: parseEther('1.5'),
-  MAX_USD: 2500,
-  MAX_AMOUNT_OF_TOKENS: 60,
+  MAX_ETH: parseEther('2.1'),
+  MAX_USD: 4000,
+  MAX_AMOUNT_OF_TOKENS: 50,
   BLOCKS: blocksIn12Days,
-  MIN_TOKEN_PNL: 9,
-  MIN_WINRATE: 0.41,
+  MIN_TOKEN_PNL: 15,
+  MIN_WINRATE: 0.29,
   MIN_PNL: 7000,
   MAX_SWAPS: 170
 };

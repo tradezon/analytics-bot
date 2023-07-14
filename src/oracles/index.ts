@@ -12,8 +12,8 @@ import {
 import logger from '../logger';
 
 const cache = new LRUCache<string, number>({
-  max: 200,
-  ttl: 5 * 60 * 1000, // 5 minutes,
+  max: 1000,
+  ttl: 30 * 60 * 1000, // 30 minutes,
   ttlAutopurge: false,
   allowStale: false,
   updateAgeOnGet: false,

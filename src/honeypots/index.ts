@@ -10,11 +10,11 @@ export enum HoneypotResult {
 }
 
 const cache = new LRUCache<string, [number, boolean]>({
-  max: 400,
+  max: 1000,
   ttl: 24 * 60 * 60 * 1000, // 1 day,
   ttlAutopurge: true,
   allowStale: false,
-  updateAgeOnGet: true,
+  updateAgeOnGet: false,
   updateAgeOnHas: false
 });
 
