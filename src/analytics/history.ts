@@ -7,6 +7,7 @@ import {
   USDT_ADDRESS,
   WETH_ADDRESS
 } from './const';
+import { Average } from '../utils/metrics/average';
 
 export function to100Percents(in_: number, result: number) {
   if (in_ === 0) return 0;
@@ -22,9 +23,13 @@ export function to100PercentsBigInt(in_: bigint, result: bigint) {
 export class TokenHistory {
   private _swaps: TransactionSwap[] = [];
   private _inETH = 0n;
+  private _avgInETH = new Average<bigint>('');
   private _inUSDT = 0n;
+  private _avgInUSDT = new Average<bigint>('');
   private _inUSDC = 0n;
+  private _avgInUSDC = new Average<bigint>('');
   private _inDAI = 0n;
+  private _avgInDAI = new Average<bigint>('');
   private _balanceUSD = 0;
   private _ETH = 0n;
   private _USDT = 0n; // 6 decimals
@@ -64,10 +69,10 @@ export class TokenHistory {
 
   getInputUSD(ethPrice: number): number {
     return (
-      Number(formatEther(this._inETH)) * ethPrice +
-      Number(formatUnits(this._inUSDT, 6)) +
-      Number(formatUnits(this._inUSDC, 6)) +
-      Number(formatUnits(this._inDAI, 18))
+      Number(formatEther(this._avgInETH.compute())) * ethPrice +
+      Number(formatUnits(this._avgInUSDT.compute(), 6)) +
+      Number(formatUnits(this._avgInUSDC.compute(), 6)) +
+      Number(formatUnits(this._avgInDAI.compute(), 18))
     );
   }
 
@@ -115,21 +120,25 @@ export class TokenHistory {
   depositForETH(val: bigint) {
     this._ETH -= val;
     this._inETH += val;
+    this._avgInETH.add(val);
   }
 
   depositForDAI(val: bigint) {
     this._DAI -= val;
     this._inDAI += val;
+    this._avgInDAI.add(val);
   }
 
   depositForUSDT(val: bigint) {
     this._USDT -= val;
     this._inUSDT += val;
+    this._avgInUSDT.add(val);
   }
 
   depositForUSDC(val: bigint) {
     this._USDC -= val;
     this._inUSDC += val;
+    this._avgInUSDC.add(val);
   }
 
   withdrawForETH(val: bigint) {

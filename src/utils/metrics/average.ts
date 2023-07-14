@@ -9,6 +9,7 @@ export class Average<
   K extends any = any
 > extends Accumulate<T, K> {
   compute(filter?: (mark: K) => boolean): T {
+    if (this.values.length === 0) return 0 as T;
     const sum = super.compute(filter);
     const newArr = this.filter(filter);
     if (isBigint(sum)) {

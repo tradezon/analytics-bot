@@ -15,6 +15,8 @@ import { AnalyticsEngine } from './analytics';
 import { getAllSwaps } from './transactions';
 import { Report } from './types';
 import {
+  AMOUNT_IN_USD_AVG,
+  AMOUNT_IN_USD_MEDIAN,
   AMOUNT_OF_TOKENS,
   PNL2_USD,
   PNL_AVERAGE_PERCENT,
@@ -49,13 +51,15 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('0.5'),
-  MIN_USD: 1000,
-  MAX_ETH: parseEther('2.1'),
-  MAX_USD: 4000,
-  MAX_AMOUNT_OF_TOKENS: 50,
+  MIN_ETH: parseEther('0.2'),
+  MIN_USD: 400,
+  MAX_ETH: parseEther('1.51'),
+  MAX_USD: 3000,
+  MAX_AMOUNT_OF_TOKENS: 45,
   BLOCKS: blocksIn12Days,
-  MIN_TOKEN_PNL: 15,
+  MIN_TOKEN_PNL: 20,
+  MIN_AVG_IN_USD: 150,
+  MIN_MEDIAN_IN_USD: 150,
   MIN_WINRATE: 0.29,
   MIN_PNL: 7000,
   MAX_SWAPS: 170
@@ -81,6 +85,18 @@ const tokenPnlFromReport = (report: Report): number | null => {
 
 const winrateFromReport = (report: Report): number | null => {
   const i = report.metrics.indexOf(WIN_RATE);
+  if (i > -1) return report.metricValues[i];
+  return null;
+};
+
+const avgInFromReport = (report: Report): number | null => {
+  const i = report.metrics.indexOf(AMOUNT_IN_USD_AVG);
+  if (i > -1) return report.metricValues[i];
+  return null;
+};
+
+const medianInFromReport = (report: Report): number | null => {
+  const i = report.metrics.indexOf(AMOUNT_IN_USD_MEDIAN);
   if (i > -1) return report.metricValues[i];
   return null;
 };
@@ -200,6 +216,8 @@ async function main() {
     const pnl = pnlFromReport(report);
     const winrate = winrateFromReport(report);
     const tokenPnl = tokenPnlFromReport(report);
+    const medianIn = medianInFromReport(report);
+    const avgIn = avgInFromReport(report);
     if (pnl2 === 0 && pnl !== pnl2) return;
     if (!pnl2 || pnl2 < SETTINGS.MIN_PNL) return;
     const amountOfTokens = amountOfTokensReport(report);
@@ -208,7 +226,9 @@ async function main() {
     if (amountOfTokens === 1) return;
     if (tokenPnl && tokenPnl < SETTINGS.MIN_TOKEN_PNL) return;
     if (winrate && winrate < SETTINGS.MIN_WINRATE) return;
-
+    if (winrate && winrate < SETTINGS.MIN_WINRATE) return;
+    if (avgIn && avgIn < SETTINGS.MIN_AVG_IN_USD) return;
+    if (medianIn && medianIn < SETTINGS.MIN_MEDIAN_IN_USD) return;
     try {
       await sendMessage(
         '-1001714973372',
