@@ -1,8 +1,6 @@
-import { AbiCoder, getAddress, zeroPadValue } from 'ethers';
+import { AbiCoder, getAddress, JsonRpcProvider, zeroPadValue } from 'ethers';
 import type { TransactionReceipt, TransactionResponse, Log } from 'ethers';
 import logger from '../logger';
-import { retry } from '../utils/promise-retry';
-import { ratelimit } from '../utils/promise-ratelimit';
 
 export interface TransactionSwap {
   wallet: string;
@@ -24,43 +22,16 @@ const UNISWAP_ROUTERS = new Set([
   '0xE592427A0AEce92De3Edee1F18E0157C05861564',
   '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45'
 ]);
+const alchemyProvider = new JsonRpcProvider(
+  'https://eth-mainnet.g.alchemy.com/v2/Xd1fcc8Vtvp_5ZbACZnFt09fL6vJgIus',
+  'mainnet',
+  { batchMaxCount: 1 }
+);
 
 function getAmount(log: Log): bigint {
   const data = log.topics.length > 3 ? log.topics[3] : log.data;
   return abiCoder.decode(['uint256'], data)[0];
 }
-
-async function getTransferredEther(
-  etherscanApi: any,
-  wallet: string,
-  txhash: string
-): Promise<bigint> {
-  let internalTxs: any;
-  try {
-    internalTxs = await etherscanApi.account.txlistinternal(txhash);
-  } catch (e: any) {
-    if (e.toString() !== 'No transactions found') {
-      throw e;
-    } else {
-      return 0n;
-    }
-  }
-  let value = 0n;
-  for (const tx of internalTxs.result) {
-    if (tx.isError === '0' && getAddress(tx.to) === wallet) {
-      value += BigInt(tx.value);
-    }
-  }
-  return value;
-}
-
-const getTransferredEtherWithRetry = ratelimit(
-  retry(getTransferredEther, {
-    limit: 3,
-    delayMs: 1_000
-  }),
-  { limit: 4, delayMs: 1_000 }
-);
 
 function findUniswapsInTransaction(
   transaction: TransactionResponse,
@@ -142,8 +113,7 @@ function findUniswapsInTransaction(
 
 export async function findSwapsInTransaction(
   transaction: TransactionResponse,
-  receipt: TransactionReceipt,
-  etherscanApi?: any
+  receipt: TransactionReceipt
 ): Promise<TransactionSwap | null> {
   if (!transaction.to) return null;
   if (
@@ -206,17 +176,21 @@ export async function findSwapsInTransaction(
 
   let ethers = 0n;
 
-  if (etherscanApi) {
-    try {
-      ethers = await getTransferredEtherWithRetry(
-        etherscanApi,
-        getAddress(transaction.from),
-        transaction.hash
-      );
-      logger.trace(`Got ${ethers} wei txhash=${transaction.hash}`);
-    } catch (e) {
-      logger.error(e);
+  try {
+    const result = await alchemyProvider.send('debug_traceTransaction', [
+      transaction.hash,
+      {
+        tracer: 'callTracer'
+      }
+    ]);
+    if (!result || !result.calls) return null;
+    for (const call of result.calls) {
+      if (getAddress(call.to) !== transaction.from) continue;
+      if (call.value === '0x0') continue;
+      ethers += BigInt(call.value);
     }
+  } catch (e) {
+    logger.error(e);
   }
 
   if (ethers > 0n) {

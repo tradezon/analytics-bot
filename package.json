@@ -13,6 +13,7 @@
     "@tradezon/txswaps": "^0.9.6",
     "axios": "^1.4.0",
     "better-sqlite3": "^8.4.0",
+    "convert-hrtime": "^5.0.0",
     "dayjs": "^1.11.8",
     "dexguru-sdk": "^1.0.8",
     "ethers": "^6.6.0",

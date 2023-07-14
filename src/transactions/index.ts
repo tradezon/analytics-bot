@@ -13,6 +13,7 @@ import {
 } from './find-swaps-in-transaction';
 import { isContract } from './is-contract';
 import invariant from 'invariant';
+import { withTimingsAsync } from '../utils/observability/with-timings';
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
 const blocksIn2Weeks = Math.ceil(
@@ -147,7 +148,7 @@ export async function getAllSwaps(
           }
           const timestamp = Number(tx.timeStamp) * 1000;
           logger.trace(`Finding swap for ${ts.hash}`);
-          const swap = await findSwapsInTransaction(ts, receipt, etherscanApi);
+          const swap = await findSwapsInTransaction(ts, receipt);
           if (swap) {
             start = start ? Math.min(timestamp, start) : timestamp;
             (swap as any).index = i;
@@ -161,7 +162,15 @@ export async function getAllSwaps(
     );
   }
 
-  await Promise.all(promises);
+  await withTimingsAsync(
+    async () => {
+      await Promise.all(promises);
+    },
+    (_, ms) =>
+      `${swaps.length} swaps found in ${
+        filteredTx.length
+      } transactions. Elapsed time=${ms.toFixed(0)}ms`
+  );
 
   return {
     start: start!,
