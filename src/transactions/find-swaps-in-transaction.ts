@@ -1,6 +1,8 @@
 import { AbiCoder, getAddress, JsonRpcProvider, zeroPadValue } from 'ethers';
 import type { TransactionReceipt, TransactionResponse, Log } from 'ethers';
 import logger from '../logger';
+import { ratelimit } from '../utils/promise-ratelimit';
+import { retry } from '../utils/promise-retry';
 
 export interface TransactionSwap {
   wallet: string;
@@ -32,6 +34,38 @@ function getAmount(log: Log): bigint {
   const data = log.topics.length > 3 ? log.topics[3] : log.data;
   return abiCoder.decode(['uint256'], data)[0];
 }
+
+async function getTransferredEther(
+  etherscanApi: any,
+  wallet: string,
+  txhash: string
+): Promise<bigint> {
+  let internalTxs: any;
+  try {
+    internalTxs = await etherscanApi.account.txlistinternal(txhash);
+  } catch (e: any) {
+    if (e.toString() !== 'No transactions found') {
+      throw e;
+    } else {
+      return 0n;
+    }
+  }
+  let value = 0n;
+  for (const tx of internalTxs.result) {
+    if (tx.isError === '0' && getAddress(tx.to) === wallet) {
+      value += BigInt(tx.value);
+    }
+  }
+  return value;
+}
+
+const getTransferredEtherWithRetry = ratelimit(
+  retry(getTransferredEther, {
+    limit: 3,
+    delayMs: 1_000
+  }),
+  { limit: 8, delayMs: 1_000 }
+);
 
 function findUniswapsInTransaction(
   transaction: TransactionResponse,
@@ -113,7 +147,8 @@ function findUniswapsInTransaction(
 
 export async function findSwapsInTransaction(
   transaction: TransactionResponse,
-  receipt: TransactionReceipt
+  receipt: TransactionReceipt,
+  etherscanApi?: any
 ): Promise<TransactionSwap | null> {
   if (!transaction.to) return null;
   if (
@@ -189,8 +224,21 @@ export async function findSwapsInTransaction(
       if (call.value === '0x0') continue;
       ethers += BigInt(call.value);
     }
-  } catch (e) {
-    logger.error(e);
+  } catch (e: any) {
+    if (e.code !== -32000 || !etherscanApi) {
+      logger.error(e);
+    }
+    if (etherscanApi) {
+      try {
+        ethers = await getTransferredEtherWithRetry(
+          etherscanApi,
+          getAddress(transaction.from),
+          transaction.hash
+        );
+      } catch (e: any) {
+        logger.error(e);
+      }
+    }
   }
 
   if (ethers > 0n) {

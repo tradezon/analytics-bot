@@ -1,7 +1,6 @@
 import {
   getAddress,
   JsonRpcProvider,
-  TransactionReceipt,
   TransactionResponse,
   WebSocketProvider
 } from 'ethers';
@@ -148,7 +147,7 @@ export async function getAllSwaps(
           }
           const timestamp = Number(tx.timeStamp) * 1000;
           logger.trace(`Finding swap for ${ts.hash}`);
-          const swap = await findSwapsInTransaction(ts, receipt);
+          const swap = await findSwapsInTransaction(ts, receipt, etherscanApi);
           if (swap) {
             start = start ? Math.min(timestamp, start) : timestamp;
             (swap as any).index = i;

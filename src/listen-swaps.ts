@@ -45,9 +45,11 @@ type WindowEntry = [
   reason: string
 ];
 
+const WINDOW_SIZE = 26;
+const MIN_WINDOW_ENTRIES = 3;
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
-const _13Days = 13 * 24 * 60 * 60;
-const blocksIn13Days = Math.ceil(_13Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
+const _7Days = 7 * 24 * 60 * 60;
+const blocksIn7Days = Math.ceil(_7Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
 
 const cache = new LRUCache<string, Report>({
   max: 4000,
@@ -59,18 +61,18 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('0.2'),
-  MIN_USD: 350,
-  MAX_ETH: parseEther('1'),
+  MIN_ETH: parseEther('0.08'),
+  MIN_USD: 180,
+  MAX_ETH: parseEther('0.7'),
   MAX_USD: 2000,
   MAX_AMOUNT_OF_TOKENS: 50,
-  BLOCKS: blocksIn13Days,
-  MIN_TOKEN_PNL: 20,
+  BLOCKS: blocksIn7Days,
+  MIN_TOKEN_PNL: 10,
   MIN_AVG_IN_USD: 150,
   MIN_MEDIAN_IN_USD: 150,
   MIN_WINRATE: 0.2,
   MIN_PNL: 7000,
-  MAX_SWAPS: 170
+  MAX_SWAPS: 130
 };
 
 const pnl2FromReport = (report: Report): number | null => {
@@ -150,16 +152,14 @@ const passFilters = (
   if (!pnl2 || pnl2 < SETTINGS.MIN_PNL) return false;
   const amountOfTokens = amountOfTokensReport(report);
   if (!amountOfTokens || amountOfTokens < 2) return false;
-  if (winrate && winrate < SETTINGS.MIN_WINRATE)
-    return false;
+  if (winrate && winrate < SETTINGS.MIN_WINRATE) return false;
+  if (tokenPnl && tokenPnl < SETTINGS.MIN_TOKEN_PNL) return false;
   if (amountOfTokens > SETTINGS.MAX_AMOUNT_OF_TOKENS)
     return [token, amount, report, timestamp, 'max_tokens'];
   if (avgIn && avgIn < SETTINGS.MIN_AVG_IN_USD)
     return [token, amount, report, timestamp, 'min_avg_in'];
   if (medianIn && medianIn < SETTINGS.MIN_MEDIAN_IN_USD)
     return [token, amount, report, timestamp, 'min_median_in'];
-  if (tokenPnl && tokenPnl < SETTINGS.MIN_TOKEN_PNL)
-    return [token, amount, report, timestamp, 'min_token_pnl'];
   return true;
 };
 
@@ -183,7 +183,6 @@ async function main() {
   );
   logger.level = LogLevel.debug;
   const onFly = new Set<string>();
-  const WINDOW_SIZE = 20;
   const signals = new Map<string, WindowEntry[]>();
   const window: Array<WindowEntry[] | null> = new Array<WindowEntry[] | null>(
     WINDOW_SIZE
@@ -221,10 +220,9 @@ async function main() {
   const alertSignalIfAny = async (tokens: Iterable<string>) => {
     const promises: Promise<void>[] = [];
     for (const token of tokens) {
-      const signalOriginal = signals.get(token);
-      if (!signalOriginal || signalOriginal.length < 2) continue;
-      let signal = signalOriginal.slice();
-      logger.debug(`Possible signal for ${token}`);
+      let signal = signals.get(token);
+      if (!signal || signal.length < MIN_WINDOW_ENTRIES - 1) continue;
+      logger.debug(`Possible signal for ${token}.`);
       signal = signal.sort((a, b) => b[3] - a[3]);
       const wallets = new Set(signal.map((s) => s[2].address));
       signal = signal.filter((s) => {
@@ -235,22 +233,26 @@ async function main() {
         }
         return false;
       });
-      if (signal.length < 2) {
-        promises.push(
-          new Promise(async (res) => {
-            try {
-              await sendMessage(
-                '-1001879517869',
-                config.token,
-                `подозрительный памп монеты\nCA \`${token}\`\nКошелек
-${signalOriginal.slice(0, 5).map(windowEntryToView).join('\n')}`
-              );
-            } catch (e: any) {
-              logger.error(e);
-            }
-            res();
-          })
-        );
+      if (signal.length < MIN_WINDOW_ENTRIES - 1) {
+        //         promises.push(
+        //           new Promise(async (res) => {
+        //             try {
+        //               await sendMessage(
+        //                 '-1001879517869',
+        //                 config.token,
+        //                 `подозрительный памп монеты\nCA \`${token}\`\nКошелек
+        // ${signalOriginal.slice(0, 5).map(windowEntryToView).join('\n')}`
+        //               );
+        //             } catch (e: any) {
+        //               logger.error(e);
+        //             }
+        //             res();
+        //           })
+        //         );
+        continue;
+      }
+      if (signal.length < MIN_WINDOW_ENTRIES) {
+        logger.debug(`Log signal for ${token}. entries=${signal.length}`);
         continue;
       }
       signals.delete(token);
@@ -268,8 +270,8 @@ ${signalOriginal.slice(0, 5).map(windowEntryToView).join('\n')}`
             await sendMessage(
               '-1001879517869',
               config.token,
-              `новый сигнал\nCA \`${token}\`\nКошельки
-${sgn.slice(0, 5).map(windowEntryToView).join('\n')}`
+              `*Новый сигнал*\nCA \`${token}\`\nКошельки\\:\n
+${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
             );
           } catch (e: any) {
             logger.error(e);
@@ -369,7 +371,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n')}`
     if (!allSwaps) return;
     const report = await analyticEngine.execute(
       wallet,
-      [(timestamp - _13Days) * 1000, timestamp * 1000],
+      [(timestamp - _7Days) * 1000, timestamp * 1000],
       allSwaps
     );
 
@@ -383,15 +385,15 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n')}`
     const result = passFilters(report, tokenOut, amount, timestamp);
     if (result === false) return;
     if (result !== true) return result;
-    try {
-      await sendMessage(
-        '-1001714973372',
-        config.token,
-        `новый кошелек ${wallet}\nстатистика за 15 дней\n${header(report)}`
-      );
-    } catch (e: any) {
-      logger.error(e);
-    }
+    // try {
+    //   await sendMessage(
+    //     '-1001714973372',
+    //     config.token,
+    //     `новый кошелек ${wallet}\nстатистика за 15 дней\n${header(report)}`
+    //   );
+    // } catch (e: any) {
+    //   logger.error(e);
+    // }
     return [tokenOut, amount, report, timestamp, 'pass'];
   };
 
