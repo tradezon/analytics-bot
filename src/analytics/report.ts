@@ -51,7 +51,7 @@ export async function createReport(
         try {
           t = await getErc20TokenData(tokenHistory.token, provider);
         } catch (e: any) {
-          console.log(e.toString());
+          logger.error(`Error while getting erc20 token info. ${e.toString()}`);
           res();
           return;
         }

@@ -1,4 +1,4 @@
-import Axios from 'axios';
+import Axios, { isAxiosError } from 'axios';
 
 export function sendMessage(
   chatId: string,
@@ -12,5 +12,12 @@ export function sendMessage(
       parse_mode: 'MarkdownV2',
       disable_web_page_preview: true
     }
+  }).catch((e: any) => {
+    if (isAxiosError(e)) {
+      return Promise.reject(
+        e.response ? new Error(JSON.stringify(e.response.data)) : e
+      );
+    }
+    return Promise.reject(e);
   });
 }

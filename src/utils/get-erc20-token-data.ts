@@ -14,7 +14,7 @@ export async function getErc20TokenData(
   const contract = new Contract(token, erc20Abi, { provider });
   const [symbol, decimals]: [string, number] = await Promise.all([
     contract.symbol(),
-    contract.decimals()
+    contract.decimals().catch(() => 18)
   ]);
   return { token, symbol, decimals: Number(decimals) };
 }

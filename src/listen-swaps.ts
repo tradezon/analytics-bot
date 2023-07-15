@@ -1,6 +1,7 @@
 // @ts-expect-error
 import EtherscanApi from 'etherscan-api';
 import {
+  formatEther,
   formatUnits,
   JsonRpcProvider,
   parseEther,
@@ -8,6 +9,7 @@ import {
   TransactionResponse,
   WebSocketProvider
 } from 'ethers';
+import { LRUCache } from 'lru-cache';
 import { readConfig } from './config';
 import path from 'path';
 import logger, { LogLevel } from './logger';
@@ -32,14 +34,20 @@ import {
   WETH_ADDRESS
 } from './analytics/const';
 import { sendMessage } from './utils/telegram-send-message';
-import { header } from './utils/telegram';
-import { LRUCache } from 'lru-cache';
+import { escape, header } from './utils/telegram';
 import { isContract } from './transactions/is-contract';
-import { isErc20Token } from './transactions/is-erc20-token';
+
+type WindowEntry = [
+  token: string,
+  amount: { eth?: number; usd: number },
+  report: Report,
+  timestamp: number,
+  reason: string
+];
 
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
-const _12Days = 12 * 24 * 60 * 60;
-const blocksIn12Days = Math.ceil(_12Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
+const _13Days = 13 * 24 * 60 * 60;
+const blocksIn13Days = Math.ceil(_13Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
 
 const cache = new LRUCache<string, Report>({
   max: 4000,
@@ -52,15 +60,15 @@ const cache = new LRUCache<string, Report>({
 
 const SETTINGS = {
   MIN_ETH: parseEther('0.2'),
-  MIN_USD: 400,
-  MAX_ETH: parseEther('1.51'),
-  MAX_USD: 3000,
-  MAX_AMOUNT_OF_TOKENS: 45,
-  BLOCKS: blocksIn12Days,
+  MIN_USD: 350,
+  MAX_ETH: parseEther('1'),
+  MAX_USD: 2000,
+  MAX_AMOUNT_OF_TOKENS: 50,
+  BLOCKS: blocksIn13Days,
   MIN_TOKEN_PNL: 20,
   MIN_AVG_IN_USD: 150,
   MIN_MEDIAN_IN_USD: 150,
-  MIN_WINRATE: 0.29,
+  MIN_WINRATE: 0.2,
   MIN_PNL: 7000,
   MAX_SWAPS: 170
 };
@@ -107,6 +115,13 @@ const amountOfTokensReport = (report: Report): number | null => {
   return null;
 };
 
+const windowEntryToView = (entry: WindowEntry) =>
+  `Wallet \`${entry[2].address}\` buy ${
+    entry[1].eth
+      ? `${escape(entry[1].eth.toFixed(2))}ETH`
+      : `${escape(entry[1].usd.toFixed(0))}\\$`
+  }\\. Reason \\"${entry[4]}\\"\n${header(entry[2])}`;
+
 const getInputUSD = (amount: bigint, token: string) => {
   switch (token) {
     case DAI_ADDRESS:
@@ -117,6 +132,35 @@ const getInputUSD = (amount: bigint, token: string) => {
     default:
       return 0;
   }
+};
+
+const passFilters = (
+  report: Report,
+  token: string,
+  amount: WindowEntry[1],
+  timestamp: number
+): boolean | WindowEntry => {
+  const pnl2 = pnl2FromReport(report);
+  const pnl = pnlFromReport(report);
+  const winrate = winrateFromReport(report);
+  const tokenPnl = tokenPnlFromReport(report);
+  const medianIn = medianInFromReport(report);
+  const avgIn = avgInFromReport(report);
+  if (pnl2 === 0 && pnl !== pnl2) return false;
+  if (!pnl2 || pnl2 < SETTINGS.MIN_PNL) return false;
+  const amountOfTokens = amountOfTokensReport(report);
+  if (!amountOfTokens || amountOfTokens < 2) return false;
+  if (winrate && winrate < SETTINGS.MIN_WINRATE)
+    return false;
+  if (amountOfTokens > SETTINGS.MAX_AMOUNT_OF_TOKENS)
+    return [token, amount, report, timestamp, 'max_tokens'];
+  if (avgIn && avgIn < SETTINGS.MIN_AVG_IN_USD)
+    return [token, amount, report, timestamp, 'min_avg_in'];
+  if (medianIn && medianIn < SETTINGS.MIN_MEDIAN_IN_USD)
+    return [token, amount, report, timestamp, 'min_median_in'];
+  if (tokenPnl && tokenPnl < SETTINGS.MIN_TOKEN_PNL)
+    return [token, amount, report, timestamp, 'min_token_pnl'];
+  return true;
 };
 
 async function main() {
@@ -139,8 +183,135 @@ async function main() {
   );
   logger.level = LogLevel.debug;
   const onFly = new Set<string>();
+  const WINDOW_SIZE = 20;
+  const signals = new Map<string, WindowEntry[]>();
+  const window: Array<WindowEntry[] | null> = new Array<WindowEntry[] | null>(
+    WINDOW_SIZE
+  ).fill(null);
 
-  const processTransaction = async (txhash: string, timestamp: number) => {
+  const logWindowState = (blockNumber: number) => {
+    logger.info(
+      `block=${blockNumber}. window ${window
+        .map((w) => (w ? '█' : '░'))
+        .join('')}. Possible signals ${signals.size}.`
+    );
+  };
+
+  const sliceWindow = () => {
+    const first = window[0];
+    for (let i = 1; i < WINDOW_SIZE; i++) window[i - 1] = window[i];
+    window[WINDOW_SIZE - 1] = null;
+    if (first === null) return;
+    for (const entry of first) {
+      const signal = signals.get(entry[0]);
+      if (!signal) {
+        continue;
+      }
+      const i = signal.indexOf(entry);
+      if (i > -1) {
+        if (signal.length === 1) {
+          signals.delete(entry[0]);
+        } else {
+          signal.splice(i, 1);
+        }
+      }
+    }
+  };
+
+  const alertSignalIfAny = async (tokens: Iterable<string>) => {
+    const promises: Promise<void>[] = [];
+    for (const token of tokens) {
+      const signalOriginal = signals.get(token);
+      if (!signalOriginal || signalOriginal.length < 2) continue;
+      let signal = signalOriginal.slice();
+      logger.debug(`Possible signal for ${token}`);
+      signal = signal.sort((a, b) => b[3] - a[3]);
+      const wallets = new Set(signal.map((s) => s[2].address));
+      signal = signal.filter((s) => {
+        const addr = s[2].address;
+        if (wallets.has(addr)) {
+          wallets.delete(addr);
+          return true;
+        }
+        return false;
+      });
+      if (signal.length < 2) {
+        promises.push(
+          new Promise(async (res) => {
+            try {
+              await sendMessage(
+                '-1001879517869',
+                config.token,
+                `подозрительный памп монеты\nCA \`${token}\`\nКошелек
+${signalOriginal.slice(0, 5).map(windowEntryToView).join('\n')}`
+              );
+            } catch (e: any) {
+              logger.error(e);
+            }
+            res();
+          })
+        );
+        continue;
+      }
+      signals.delete(token);
+      logger.debug(`Creating signal for ${token}`);
+      promises.push(
+        new Promise(async (res) => {
+          const sgn = (signal as WindowEntry[]).sort((a, b) => {
+            const tokenPnl1 = tokenPnlFromReport(a[2]);
+            if (!tokenPnl1) return 1;
+            const tokenPnl2 = tokenPnlFromReport(b[2]);
+            if (!tokenPnl2) return -1;
+            return tokenPnl2 - tokenPnl1;
+          });
+          try {
+            await sendMessage(
+              '-1001879517869',
+              config.token,
+              `новый сигнал\nCA \`${token}\`\nКошельки
+${sgn.slice(0, 5).map(windowEntryToView).join('\n')}`
+            );
+          } catch (e: any) {
+            logger.error(e);
+          }
+          res();
+        })
+      );
+    }
+    await Promise.all(promises);
+  };
+
+  const addBlockEntriesInWindow = (
+    entries: WindowEntry[],
+    blockNumber: number
+  ) => {
+    sliceWindow();
+    if (entries.length === 0) {
+      logWindowState(blockNumber);
+      return;
+    }
+    window[WINDOW_SIZE - 1] = entries;
+
+    const tokens: Set<string> = new Set<string>();
+    for (const entry of entries) {
+      const token = entry[0];
+      tokens.add(token);
+      let signal = signals.get(token);
+      if (!signal) {
+        signal = [];
+        signals.set(token, signal);
+      }
+      signal.push(entry);
+    }
+
+    alertSignalIfAny(tokens);
+    logWindowState(blockNumber);
+  };
+
+  const processTransaction = async (
+    txhash: string,
+    timestamp: number
+  ): Promise<WindowEntry | undefined> => {
     const [tx, receipt]: [
       TransactionResponse | null,
       TransactionReceipt | null
@@ -159,28 +330,25 @@ async function main() {
     // if token in is not stable/weth or token out is stable/weth skip it
     if (!STABLES.has(tokenIn) || STABLES.has(tokenOut)) return;
 
+    let amount: { eth?: number; usd: number };
+
     /* check amount in */
     if (tokenIn === WETH_ADDRESS) {
       if (amountIn < SETTINGS.MIN_ETH || amountIn > SETTINGS.MAX_ETH) return;
+      amount = { eth: Number(formatEther(amountIn)), usd: 0 };
     } else {
       const input = getInputUSD(amountIn, tokenIn);
       if (input < SETTINGS.MIN_USD || input > SETTINGS.MAX_USD) return;
+      amount = { usd: input };
     }
 
     /* ready for analytics */
     const wallet = tx.from;
 
     if (cache.has(wallet)) {
-      // const report = cache.get(wallet) as Report;
-      // try {
-      //   await sendMessage(
-      //     '-1001714973372',
-      //     config.token,
-      //     `новый кошелек ${wallet}\nстатистика за 15 дней\n${header(report)}`
-      //   );
-      // } catch (e: any) {
-      //   logger.error(e);
-      // }
+      const report = cache.get(wallet)!;
+      const result = passFilters(report, tokenOut, amount, timestamp);
+      if (typeof result !== 'boolean') return result;
       return;
     }
     if (onFly.has(wallet)) return;
@@ -201,7 +369,7 @@ async function main() {
     if (!allSwaps) return;
     const report = await analyticEngine.execute(
       wallet,
-      [(timestamp - _12Days) * 1000, timestamp * 1000],
+      [(timestamp - _13Days) * 1000, timestamp * 1000],
       allSwaps
     );
 
@@ -212,23 +380,9 @@ async function main() {
     cache.set(wallet, report);
     onFly.delete(wallet);
 
-    const pnl2 = pnl2FromReport(report);
-    const pnl = pnlFromReport(report);
-    const winrate = winrateFromReport(report);
-    const tokenPnl = tokenPnlFromReport(report);
-    const medianIn = medianInFromReport(report);
-    const avgIn = avgInFromReport(report);
-    if (pnl2 === 0 && pnl !== pnl2) return;
-    if (!pnl2 || pnl2 < SETTINGS.MIN_PNL) return;
-    const amountOfTokens = amountOfTokensReport(report);
-    if (!amountOfTokens || amountOfTokens > SETTINGS.MAX_AMOUNT_OF_TOKENS)
-      return;
-    if (amountOfTokens === 1) return;
-    if (tokenPnl && tokenPnl < SETTINGS.MIN_TOKEN_PNL) return;
-    if (winrate && winrate < SETTINGS.MIN_WINRATE) return;
-    if (winrate && winrate < SETTINGS.MIN_WINRATE) return;
-    if (avgIn && avgIn < SETTINGS.MIN_AVG_IN_USD) return;
-    if (medianIn && medianIn < SETTINGS.MIN_MEDIAN_IN_USD) return;
+    const result = passFilters(report, tokenOut, amount, timestamp);
+    if (result === false) return;
+    if (result !== true) return result;
     try {
       await sendMessage(
         '-1001714973372',
@@ -238,6 +392,7 @@ async function main() {
     } catch (e: any) {
       logger.error(e);
     }
+    return [tokenOut, amount, report, timestamp, 'pass'];
   };
 
   provider.on('block', async (blockNumber: number) => {
@@ -245,11 +400,18 @@ async function main() {
     if (!block) return;
 
     const now = Date.now();
-    const promises: Promise<any>[] = [];
+    const promises: Promise<void>[] = [];
+    const entries: WindowEntry[] = [];
 
     for (const txhash of block.transactions)
-      promises.push(processTransaction(txhash, block.timestamp));
+      promises.push(
+        processTransaction(txhash, block.timestamp).then((entry) => {
+          if (!entry) return;
+          entries.push(entry);
+        })
+      );
     await Promise.all(promises);
+    addBlockEntriesInWindow(entries, blockNumber);
     const end = Date.now();
     let mseconds = end - now;
     const seconds = Math.floor(mseconds / 1000);

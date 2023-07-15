@@ -1,6 +1,7 @@
 import Axios, { CreateAxiosDefaults } from 'axios';
 import { LRUCache } from 'lru-cache';
 import { retry } from '../utils/promise-retry';
+import logger from '../logger';
 
 export enum HoneypotResult {
   UNKNOWN = -1,
@@ -53,7 +54,7 @@ export async function isHoneypot(
     }
     return HoneypotResult.NOT_A_HONEYPOT;
   } catch (e: any) {
-    console.log(e.message);
+    logger.warn(`Error while getting honeypot info. ${e.toString()}`);
     return HoneypotResult.UNKNOWN;
   }
 }
