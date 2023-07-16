@@ -225,10 +225,9 @@ export async function findSwapsInTransaction(
       ethers += BigInt(call.value);
     }
   } catch (e: any) {
-    if (e.code !== -32000 || !etherscanApi) {
+    if (!etherscanApi) {
       logger.error(e);
-    }
-    if (etherscanApi) {
+    } else {
       try {
         ethers = await getTransferredEtherWithRetry(
           etherscanApi,

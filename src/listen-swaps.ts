@@ -37,7 +37,7 @@ import { sendMessage } from './utils/telegram-send-message';
 import { escape, header } from './utils/telegram';
 import { isContract } from './transactions/is-contract';
 
-type WindowEntry = [
+type WindowWalletEntry = [
   token: string,
   amount: { eth?: number; usd: number },
   report: Report,
@@ -117,12 +117,12 @@ const amountOfTokensReport = (report: Report): number | null => {
   return null;
 };
 
-const windowEntryToView = (entry: WindowEntry) =>
+const windowEntryToView = (entry: WindowWalletEntry) =>
   `Wallet \`${entry[2].address}\` buy ${
     entry[1].eth
       ? `${escape(entry[1].eth.toFixed(2))}ETH`
       : `${escape(entry[1].usd.toFixed(0))}\\$`
-  }\\. Reason \\"${entry[4]}\\"\n${header(entry[2])}`;
+  }\\. Reason \\"${escape(entry[4])}\\"\n${header(entry[2])}`;
 
 const getInputUSD = (amount: bigint, token: string) => {
   switch (token) {
@@ -139,9 +139,12 @@ const getInputUSD = (amount: bigint, token: string) => {
 const passFilters = (
   report: Report,
   token: string,
-  amount: WindowEntry[1],
+  amount: WindowWalletEntry[1],
   timestamp: number
-): boolean | WindowEntry => {
+): false | WindowWalletEntry => {
+  const honeypots = report.honeypots?.tokens.length || 0;
+  if (honeypots && honeypots / (honeypots + report.tokens.length) > 0.79)
+    return false;
   const pnl2 = pnl2FromReport(report);
   const pnl = pnlFromReport(report);
   const winrate = winrateFromReport(report);
@@ -160,7 +163,7 @@ const passFilters = (
     return [token, amount, report, timestamp, 'min_avg_in'];
   if (medianIn && medianIn < SETTINGS.MIN_MEDIAN_IN_USD)
     return [token, amount, report, timestamp, 'min_median_in'];
-  return true;
+  return [token, amount, report, timestamp, 'pass'];
 };
 
 async function main() {
@@ -183,10 +186,10 @@ async function main() {
   );
   logger.level = LogLevel.debug;
   const onFly = new Set<string>();
-  const signals = new Map<string, WindowEntry[]>();
-  const window: Array<WindowEntry[] | null> = new Array<WindowEntry[] | null>(
-    WINDOW_SIZE
-  ).fill(null);
+  const signals = new Map<string, WindowWalletEntry[]>();
+  const window: Array<WindowWalletEntry[] | null> = new Array<
+    WindowWalletEntry[] | null
+  >(WINDOW_SIZE).fill(null);
 
   const logWindowState = (blockNumber: number) => {
     logger.info(
@@ -252,6 +255,28 @@ async function main() {
         continue;
       }
       if (signal.length < MIN_WINDOW_ENTRIES) {
+        promises.push(
+          new Promise(async (res) => {
+            const sgn = (signal as WindowWalletEntry[]).sort((a, b) => {
+              const tokenPnl1 = tokenPnlFromReport(a[2]);
+              if (!tokenPnl1) return 1;
+              const tokenPnl2 = tokenPnlFromReport(b[2]);
+              if (!tokenPnl2) return -1;
+              return tokenPnl2 - tokenPnl1;
+            });
+            try {
+              await sendMessage(
+                '-1001879517869',
+                config.token,
+                `*Новый minor сигнал*\nCA \`${token}\`\nКошельки\\:\n
+${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
+              );
+            } catch (e: any) {
+              logger.error(e);
+            }
+            res();
+          })
+        );
         logger.debug(`Log signal for ${token}. entries=${signal.length}`);
         continue;
       }
@@ -259,7 +284,7 @@ async function main() {
       logger.debug(`Creating signal for ${token}`);
       promises.push(
         new Promise(async (res) => {
-          const sgn = (signal as WindowEntry[]).sort((a, b) => {
+          const sgn = (signal as WindowWalletEntry[]).sort((a, b) => {
             const tokenPnl1 = tokenPnlFromReport(a[2]);
             if (!tokenPnl1) return 1;
             const tokenPnl2 = tokenPnlFromReport(b[2]);
@@ -270,7 +295,7 @@ async function main() {
             await sendMessage(
               '-1001879517869',
               config.token,
-              `*Новый сигнал*\nCA \`${token}\`\nКошельки\\:\n
+              `*Новый 🚨 MAJOR сигнал*\nCA \`${token}\`\nКошельки\\:\n
 ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
             );
           } catch (e: any) {
@@ -284,7 +309,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
   };
 
   const addBlockEntriesInWindow = (
-    entries: WindowEntry[],
+    entries: WindowWalletEntry[],
     blockNumber: number
   ) => {
     sliceWindow();
@@ -313,7 +338,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
   const processTransaction = async (
     txhash: string,
     timestamp: number
-  ): Promise<WindowEntry | undefined> => {
+  ): Promise<WindowWalletEntry | undefined> => {
     const [tx, receipt]: [
       TransactionResponse | null,
       TransactionReceipt | null
@@ -324,7 +349,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
     if (!receipt || !tx || !tx.to || !tx.blockNumber) return;
     if (receipt.logs.length < 3) return;
     if (await isContract(tx.from, provider)) return;
-    const swap = await findSwapsInTransaction(tx, receipt);
+    const swap = await findSwapsInTransaction(tx, receipt, etherscanApi);
     if (!swap || swap.tokenOut.length > 1 || swap.tokenIn.length > 1) return;
     const tokenIn = swap.tokenIn[0];
     const tokenOut = swap.tokenOut[0];
@@ -350,7 +375,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
     if (cache.has(wallet)) {
       const report = cache.get(wallet)!;
       const result = passFilters(report, tokenOut, amount, timestamp);
-      if (typeof result !== 'boolean') return result;
+      if (result !== false) return result;
       return;
     }
     if (onFly.has(wallet)) return;
@@ -384,7 +409,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
 
     const result = passFilters(report, tokenOut, amount, timestamp);
     if (result === false) return;
-    if (result !== true) return result;
+    return result;
     // try {
     //   await sendMessage(
     //     '-1001714973372',
@@ -394,7 +419,6 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
     // } catch (e: any) {
     //   logger.error(e);
     // }
-    return [tokenOut, amount, report, timestamp, 'pass'];
   };
 
   provider.on('block', async (blockNumber: number) => {
@@ -403,7 +427,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
 
     const now = Date.now();
     const promises: Promise<void>[] = [];
-    const entries: WindowEntry[] = [];
+    const entries: WindowWalletEntry[] = [];
 
     for (const txhash of block.transactions)
       promises.push(
