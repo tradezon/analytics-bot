@@ -45,6 +45,8 @@ type WindowWalletEntry = [
   reason: string
 ];
 
+const FIRST_SEEN_MAP = new Map<string, [number, number]>();
+const SIGNALED = new Set<string>();
 const WINDOW_SIZE = 26;
 const MIN_WINDOW_ENTRIES = 3;
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
@@ -61,9 +63,9 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('0.08'),
+  MIN_ETH: parseEther('0.1'),
   MIN_USD: 180,
-  MAX_ETH: parseEther('0.7'),
+  MAX_ETH: parseEther('1'),
   MAX_USD: 2000,
   MAX_AMOUNT_OF_TOKENS: 50,
   BLOCKS: blocksIn7Days,
@@ -134,6 +136,24 @@ const getInputUSD = (amount: bigint, token: string) => {
     default:
       return 0;
   }
+};
+
+const visitToken = (token: string) => {
+  const entry = FIRST_SEEN_MAP.get(token);
+  const now = Date.now();
+  if (!entry) {
+    FIRST_SEEN_MAP.set(token, [now, now]);
+  } else {
+    entry[1] = now;
+  }
+};
+
+const isNewToken = (token: string) => {
+  const entry = FIRST_SEEN_MAP.get(token);
+  if (entry) {
+    return Date.now() - entry[0] <= 40 * 60 * 1000;
+  }
+  return true;
 };
 
 const passFilters = (
@@ -254,6 +274,19 @@ async function main() {
         //         );
         continue;
       }
+      if (!SIGNALED.has(token) && isNewToken(token)) {
+        promises.push(
+          new Promise(async (res) => {
+            try {
+              await sendMessage('-1001615457203', config.token, token);
+              SIGNALED.add(token);
+            } catch (e: any) {
+              logger.error(e);
+            }
+            res();
+          })
+        );
+      }
       if (signal.length < MIN_WINDOW_ENTRIES) {
         promises.push(
           new Promise(async (res) => {
@@ -277,7 +310,6 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
             res();
           })
         );
-        logger.debug(`Log signal for ${token}. entries=${signal.length}`);
         continue;
       }
       signals.delete(token);
@@ -357,6 +389,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
     // if token in is not stable/weth or token out is stable/weth skip it
     if (!STABLES.has(tokenIn) || STABLES.has(tokenOut)) return;
 
+    visitToken(tokenOut);
     let amount: { eth?: number; usd: number };
 
     /* check amount in */
@@ -409,16 +442,18 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
 
     const result = passFilters(report, tokenOut, amount, timestamp);
     if (result === false) return;
+    if (result[4] === 'pass') {
+      try {
+        await sendMessage(
+          '-1001714973372',
+          config.token,
+          `новый кошелек ${wallet}\nстатистика за 15 дней\n${header(report)}`
+        );
+      } catch (e: any) {
+        logger.error(e);
+      }
+    }
     return result;
-    // try {
-    //   await sendMessage(
-    //     '-1001714973372',
-    //     config.token,
-    //     `новый кошелек ${wallet}\nстатистика за 15 дней\n${header(report)}`
-    //   );
-    // } catch (e: any) {
-    //   logger.error(e);
-    // }
   };
 
   provider.on('block', async (blockNumber: number) => {
