@@ -45,13 +45,12 @@ type WindowWalletEntry = [
   reason: string
 ];
 
-const FIRST_SEEN_MAP = new Map<string, [number, number]>();
 const SIGNALED = new Set<string>();
 const WINDOW_SIZE = 26;
 const MIN_WINDOW_ENTRIES = 3;
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
-const _7Days = 7 * 24 * 60 * 60;
-const blocksIn7Days = Math.ceil(_7Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
+const _20Days = 20 * 24 * 60 * 60;
+const blocksIn20Days = Math.ceil(_20Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
 
 const cache = new LRUCache<string, Report>({
   max: 4000,
@@ -63,18 +62,18 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('0.1'),
-  MIN_USD: 180,
-  MAX_ETH: parseEther('1'),
-  MAX_USD: 2000,
-  MAX_AMOUNT_OF_TOKENS: 50,
-  BLOCKS: blocksIn7Days,
-  MIN_TOKEN_PNL: 10,
-  MIN_AVG_IN_USD: 150,
-  MIN_MEDIAN_IN_USD: 150,
-  MIN_WINRATE: 0.2,
-  MIN_PNL: 7000,
-  MAX_SWAPS: 130
+  MIN_ETH: parseEther('1'),
+  MIN_USD: 1800,
+  MAX_ETH: parseEther('8'),
+  MAX_USD: 20000,
+  MAX_AMOUNT_OF_TOKENS: 30,
+  BLOCKS: blocksIn20Days,
+  MIN_TOKEN_PNL: 13,
+  MIN_AVG_IN_USD: 1800,
+  MIN_MEDIAN_IN_USD: 1800,
+  MIN_WINRATE: 0.4,
+  MIN_PNL: 15000,
+  MAX_SWAPS: 120
 };
 
 const pnl2FromReport = (report: Report): number | null => {
@@ -136,24 +135,6 @@ const getInputUSD = (amount: bigint, token: string) => {
     default:
       return 0;
   }
-};
-
-const visitToken = (token: string) => {
-  const entry = FIRST_SEEN_MAP.get(token);
-  const now = Date.now();
-  if (!entry) {
-    FIRST_SEEN_MAP.set(token, [now, now]);
-  } else {
-    entry[1] = now;
-  }
-};
-
-const isNewToken = (token: string) => {
-  const entry = FIRST_SEEN_MAP.get(token);
-  if (entry) {
-    return Date.now() - entry[0] <= 40 * 60 * 1000;
-  }
-  return true;
 };
 
 const passFilters = (
@@ -274,12 +255,12 @@ async function main() {
         //         );
         continue;
       }
-      if (!SIGNALED.has(token) && isNewToken(token)) {
+      if (!SIGNALED.has(token)) {
+        SIGNALED.add(token);
         promises.push(
           new Promise(async (res) => {
             try {
               await sendMessage('-1001615457203', config.token, token);
-              SIGNALED.add(token);
             } catch (e: any) {
               logger.error(e);
             }
@@ -389,7 +370,6 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
     // if token in is not stable/weth or token out is stable/weth skip it
     if (!STABLES.has(tokenIn) || STABLES.has(tokenOut)) return;
 
-    visitToken(tokenOut);
     let amount: { eth?: number; usd: number };
 
     /* check amount in */
@@ -429,7 +409,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
     if (!allSwaps) return;
     const report = await analyticEngine.execute(
       wallet,
-      [(timestamp - _7Days) * 1000, timestamp * 1000],
+      [(timestamp - _20Days) * 1000, timestamp * 1000],
       allSwaps
     );
 
@@ -447,7 +427,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
         await sendMessage(
           '-1001714973372',
           config.token,
-          `новый кошелек ${wallet}\nстатистика за 15 дней\n${header(report)}`
+          `новый кошелек ${wallet}\n${header(report)}`
         );
       } catch (e: any) {
         logger.error(e);

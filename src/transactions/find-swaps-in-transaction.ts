@@ -20,9 +20,7 @@ const abiCoder = AbiCoder.defaultAbiCoder();
 
 const UNISWAP_ROUTERS = new Set([
   '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
-  '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD',
-  '0xE592427A0AEce92De3Edee1F18E0157C05861564',
-  '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45'
+  '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD'
 ]);
 const alchemyProvider = new JsonRpcProvider(
   'https://eth-mainnet.g.alchemy.com/v2/Xd1fcc8Vtvp_5ZbACZnFt09fL6vJgIus',
@@ -219,9 +217,15 @@ export async function findSwapsInTransaction(
       }
     ]);
     if (!result || !result.calls) return null;
-    for (const call of result.calls) {
-      if (getAddress(call.to) !== transaction.from) continue;
+    const toVisit = result.calls;
+    for (let i = 0; i < toVisit.length; i++) {
+      const call = toVisit[i];
+      if (call.calls) {
+        for (const innerCall of call.calls) toVisit.push(innerCall);
+      }
+      if (call.type !== 'CALL') continue;
       if (call.value === '0x0') continue;
+      if (getAddress(call.to) !== transaction.from) continue;
       ethers += BigInt(call.value);
     }
   } catch (e: any) {

@@ -21,6 +21,8 @@ import fixture9 from './fixtures-tx/0xb7e7c48682878a3e846da89738db60df8900ee0dad
 import fixture10 from './fixtures-tx/0x457ff0395d05eab828a3d5601b2ff5fe367c477faf29c15338b38481d61d956a.json';
 import fixture11 from './fixtures-tx/0x9f31076662df5082428b7a60405e25fa8e93657f0d8358e3d04716fb2ee0ace9.json';
 import fixture12 from './fixtures-tx/0xac67ba6754e192157bdce5254d8cf8d4ea0991665d20faf36cffaab5e02e832c.json';
+import fixture13 from './fixtures-tx/0xa3918a1ccfab33e10fd012a2a7d39dde6d2743d7d92b4221f3314c1ce41062ad.json';
+import fixture14 from './fixtures-tx/0xc880cec5a195b2054592c9780c29de58038ec0d6832a55907e76ec04fe144b0c.json';
 
 const etherscanApi = EtherscanApi.init('QMW2MPMAM4T9HWH3STPPK836GRWQX1QW3Q');
 
@@ -145,6 +147,26 @@ const testCases: [any, TransactionSwap | null][] = [
       amountIn: [20440041000000000n],
       amountOut: [parseEther('0.471973421004104052')]
     }
+  ],
+  [
+    fixture13,
+    {
+      wallet: '0x337EA8c2A06295d86459b44c823AC0630ACa4769',
+      tokenIn: ['0x28c6cE090BF0D534815C59440a197e92B4Cf718f'],
+      tokenOut: ['0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'],
+      amountIn: [4916177311389414680838672146n],
+      amountOut: [parseEther('5.818023373403227501')]
+    } as any
+  ],
+  [
+    fixture14,
+    {
+      wallet: '0xF4Dcc72511AfE40AfCC85b2102ffF3d58E507cf4',
+      tokenIn: ['0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'],
+      tokenOut: ['0x8e0E57DCb1ce8d9091dF38ec1BfC3b224529754A'],
+      amountIn: [parseEther('1')],
+      amountOut: [1891847614688657049024n]
+    } as any
   ]
 ];
 
@@ -157,5 +179,5 @@ testCases.forEach((tx) => {
       etherscanApi
     );
     expect(swap).toEqual(tx[1]);
-  });
+  }, 7_000);
 });
