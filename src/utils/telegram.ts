@@ -127,17 +127,7 @@ export function renderShort(report: Report): [string, number] {
   );
 
   profitableCoins = profitableCoins.sort((a, b) => {
-    if (a.profitETH?.x) {
-      if (b.profitETH?.x) {
-        const aValue = parseFloat(a.profitETH.x);
-        const bValue = parseFloat(b.profitETH.x);
-        return bValue - aValue;
-      }
-      return -1;
-    } else if (b.profitETH?.x) {
-      return 1;
-    }
-    return b.profitUSD - a.profitUSD;
+    return b.percent - a.percent;
   });
   for (const coin of lossCoins) loss += coin.profitUSD;
   for (const coin of profitableCoins) profit += coin.profitUSD;
@@ -150,15 +140,11 @@ ${
         profit.toFixed(0)
       )}$\\):\n${profitableCoins
         .map(
-          ({ token, symbol, profitUSD, profitETH }) =>
+          ({ token, symbol, profitUSD, profitETH, percent }) =>
             `${hyperLink(etherscanAddressLink(token), escape(symbol))} ${escape(
               profitUSD.toFixed(0)
-            )}$ ${
-              profitETH
-                ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
-                    profitETH.x
-                  )}`
-                : ''
+            )}$ \\| ${percent}\\% ${
+              profitETH && `\\| ${escape(profitETH.toFixed(2))}ETH`
             }`
         )
         .join('\n')}`
@@ -211,7 +197,7 @@ export function renderTokensList(
 ) {
   return `${header(report)}\n\n${title}\n${tokens
     .map(
-      ({ token, decimals, symbol, profitUSD, profitETH, balance }) =>
+      ({ token, decimals, symbol, profitUSD, profitETH, balance, percent }) =>
         `${
           balance
             ? `${escape(saveBalance(balance.value, decimals).toFixed(0))}`
@@ -222,12 +208,8 @@ export function renderTokensList(
               ? balance.usd.toFixed(0)
               : ''
             : profitUSD.toFixed(0)
-        )}$ ${
-          profitETH && !current
-            ? `\\| ${escape(profitETH.value.toFixed(2))}ETH ${renderX(
-                profitETH.x
-              )}`
-            : ''
+        )}$ \\| ${percent}\\% ${
+          profitETH && `\\| ${escape(profitETH.toFixed(2))}ETH`
         }`
     )
     .join('\n')}`;

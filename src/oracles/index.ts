@@ -8,7 +8,7 @@ import {
 import {
   createPriceOracle as createCoinGecko,
   PriceOracle as CoinGecko
-} from './coin-gecko';
+} from './dex-guru';
 import logger from '../logger';
 
 const cache = new LRUCache<string, number>({
@@ -22,13 +22,13 @@ const cache = new LRUCache<string, number>({
 
 export class PriceOracle {
   private _1inchAggregator: _1inchAggregator;
-  private coinGecko: CoinGecko;
+  private dexguru?: CoinGecko;
 
   constructor(
     provider: JsonRpcProvider | WebSocketProvider,
-    geckoTokenKey?: string
+    dexguruToken?: string
   ) {
-    this.coinGecko = createCoinGecko(geckoTokenKey);
+    this.dexguru = dexguruToken ? createCoinGecko(dexguruToken) : undefined;
     this._1inchAggregator = create1inchAggregator(provider);
   }
 
@@ -61,11 +61,13 @@ export class PriceOracle {
       return priceUSD;
     }
 
-    try {
-      priceUSD = await this.coinGecko(chainId, token);
-      if (priceUSD) cache.set(key, priceUSD);
-    } catch (e: any) {
-      logger.error(e.toString());
+    if (this.dexguru) {
+      try {
+        priceUSD = await this.dexguru(chainId, token);
+        if (priceUSD) cache.set(key, priceUSD);
+      } catch (e: any) {
+        logger.error(e.toString());
+      }
     }
     return priceUSD;
   }

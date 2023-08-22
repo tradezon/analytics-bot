@@ -49,11 +49,16 @@ async function main() {
   let blockNumber = initialBlock.number;
   setInterval(() => blockNumber++, 10 * 1000).unref();
   logger.info(`Initial block number ${blockNumber}`);
-  if (config.gecko) logger.info('Using coin gecko api..');
+  if (config.dexguru) logger.info('Using dexguru api..');
   const bot = new Telegraf(config.token);
   bot.use(Telegraf.log());
   const [adminScenario, db] = await admin();
-  const walletScenario = wallet(bot, provider, config.gecko, () => blockNumber);
+  const walletScenario = wallet(
+    bot,
+    provider,
+    config.dexguru,
+    () => blockNumber
+  );
   const stage = new Scenes.Stage([walletScenario as any, adminScenario as any]);
   bot.use(session());
   bot.use(createAuthMiddleware(db));

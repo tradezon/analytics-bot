@@ -72,14 +72,20 @@ export async function createReport(
           profitUSD: 0,
           profitETH: tokenHistory.getProfitETH() || undefined,
           inWallet: false,
-          lowLiquidity: false
+          lowLiquidity: false,
+          percent: 0
         };
         let tokenBalance = await getErc20TokenBalance(
           t.token,
           wallet,
           provider
         );
-        tokenBalance = tokenBalance === null ? balance : tokenBalance;
+        tokenBalance =
+          tokenBalance === null
+            ? balance
+            : tokenBalance > balance
+            ? balance
+            : tokenBalance;
         if (tokenBalance > 0n) {
           // this token is left in wallet
           const tokensBalanceFromHistory = saveBalance(
@@ -97,7 +103,9 @@ export async function createReport(
           );
 
           logger.trace(
-            `Detecting price for ${t.token} with balance ${tokenBalance}`
+            `Price for ${t.token} is ${
+              priceUSD ? `${priceUSD.toFixed(0)}$` : null
+            } with balance ${tokenBalance}`
           );
 
           if (priceUSD) {
@@ -127,6 +135,7 @@ export async function createReport(
               };
               report.honeypots.tokens.push(result);
               result.profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
+              result.percent = tokenHistory.getProfitInPercent(usdToEthPrice);
               winRate.add(Number(result.profitUSD >= 0));
               pnlUSD.add(result.profitUSD, tokenHistory.token);
               pnlPercent.add(
@@ -179,6 +188,7 @@ export async function createReport(
         }
 
         result.profitUSD = tokenHistory.getProfitUSD(usdToEthPrice);
+        result.percent = tokenHistory.getProfitInPercent(usdToEthPrice);
         result.profitETH = tokenHistory.getProfitETH() || undefined;
 
         report.tokens.push(result);

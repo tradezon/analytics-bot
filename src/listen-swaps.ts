@@ -49,8 +49,8 @@ const SIGNALED = new Set<string>();
 const WINDOW_SIZE = 26;
 const MIN_WINDOW_ENTRIES = 3;
 const AVERAGE_ETH_BLOCKTIME_SECONDS = 12;
-const _20Days = 20 * 24 * 60 * 60;
-const blocksIn20Days = Math.ceil(_20Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
+const _14Days = 14 * 24 * 60 * 60;
+const blocksIn14Days = Math.ceil(_14Days / AVERAGE_ETH_BLOCKTIME_SECONDS);
 
 const cache = new LRUCache<string, Report>({
   max: 4000,
@@ -62,17 +62,17 @@ const cache = new LRUCache<string, Report>({
 });
 
 const SETTINGS = {
-  MIN_ETH: parseEther('1'),
-  MIN_USD: 1800,
-  MAX_ETH: parseEther('8'),
-  MAX_USD: 20000,
+  MIN_ETH: parseEther('0.5'),
+  MIN_USD: 700,
+  MAX_ETH: parseEther('2'),
+  MAX_USD: 3600,
   MAX_AMOUNT_OF_TOKENS: 30,
-  BLOCKS: blocksIn20Days,
+  BLOCKS: blocksIn14Days,
   MIN_TOKEN_PNL: 13,
-  MIN_AVG_IN_USD: 1800,
-  MIN_MEDIAN_IN_USD: 1800,
-  MIN_WINRATE: 0.4,
-  MIN_PNL: 15000,
+  MIN_AVG_IN_USD: 500,
+  MIN_MEDIAN_IN_USD: 500,
+  MIN_WINRATE: 0.45,
+  MIN_PNL: 10000,
   MAX_SWAPS: 120
 };
 
@@ -179,7 +179,7 @@ async function main() {
   const etherscanApi = EtherscanApi.init('QMW2MPMAM4T9HWH3STPPK836GRWQX1QW3Q');
   const analyticEngine = new AnalyticsEngine(
     provider,
-    config.gecko,
+    config.dexguru,
     async () => {
       const { result } = await etherscanApi.stats.ethprice();
       return result.ethusd;
@@ -409,7 +409,7 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
     if (!allSwaps) return;
     const report = await analyticEngine.execute(
       wallet,
-      [(timestamp - _20Days) * 1000, timestamp * 1000],
+      [(timestamp - _14Days) * 1000, timestamp * 1000],
       allSwaps
     );
 
@@ -441,18 +441,11 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
     if (!block) return;
 
     const now = Date.now();
-    const promises: Promise<void>[] = [];
-    const entries: WindowWalletEntry[] = [];
+    const promises: Promise<any>[] = [];
 
     for (const txhash of block.transactions)
-      promises.push(
-        processTransaction(txhash, block.timestamp).then((entry) => {
-          if (!entry) return;
-          entries.push(entry);
-        })
-      );
+      promises.push(processTransaction(txhash, block.timestamp));
     await Promise.all(promises);
-    addBlockEntriesInWindow(entries, blockNumber);
     const end = Date.now();
     let mseconds = end - now;
     const seconds = Math.floor(mseconds / 1000);

@@ -43,10 +43,10 @@ export class AnalyticsEngine {
 
   constructor(
     private provider: JsonRpcProvider | WebSocketProvider,
-    geckoApiToken: string,
+    dexguruApiToken: string,
     getETHPrice: () => Promise<string>
   ) {
-    this.priceOracle = new PriceOracle(provider, geckoApiToken);
+    this.priceOracle = new PriceOracle(provider, dexguruApiToken);
     this.getETHPrice = retry(getETHPrice, { limit: 5, delayMs: 1_000 });
   }
 

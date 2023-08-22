@@ -30,7 +30,7 @@ async function main() {
   const etherscanApi = EtherscanApi.init('QMW2MPMAM4T9HWH3STPPK836GRWQX1QW3Q');
   const analyticEngine = new AnalyticsEngine(
     provider,
-    config.gecko,
+    config.dexguru,
     async () => {
       const { result } = await etherscanApi.stats.ethprice();
       return result.ethusd;

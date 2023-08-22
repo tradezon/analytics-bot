@@ -91,7 +91,7 @@ export class TokenHistory {
     );
   }
 
-  getProfitETH(): { value: number; x?: string } | false {
+  getProfitETH(): number | false {
     if (
       this._ETH === 0n ||
       this._DAI !== 0n ||
@@ -100,13 +100,7 @@ export class TokenHistory {
       this._balanceUSD !== 0
     )
       return false;
-    return {
-      value: Number(formatEther(this._ETH)),
-      x:
-        this._ETH < 0n || this._inETH === 0n
-          ? undefined
-          : (1.0 + Number(this._ETH) / Number(this._inETH)).toFixed(1)
-    };
+    return Number(formatEther(this._ETH));
   }
 
   currentTokensBalanceETH(eth: bigint) {

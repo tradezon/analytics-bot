@@ -9,7 +9,8 @@ export interface TokenInfo extends BasicTokenInfo {
   lowLiquidity: boolean;
   profitUSD: number;
   balance?: { usd: number; value: bigint };
-  profitETH?: { value: number; x?: string };
+  profitETH?: number;
+  percent: number;
 }
 
 export interface Report {
