@@ -143,7 +143,7 @@ ${
           ({ token, symbol, profitUSD, profitETH, percent }) =>
             `${hyperLink(etherscanAddressLink(token), escape(symbol))} ${escape(
               profitUSD.toFixed(0)
-            )}$ \\| ${percent}\\% ${
+            )}$ \\| ${escape(percent)}\\% ${
               profitETH && `\\| ${escape(profitETH.toFixed(2))}ETH`
             }`
         )
@@ -208,7 +208,7 @@ export function renderTokensList(
               ? balance.usd.toFixed(0)
               : ''
             : profitUSD.toFixed(0)
-        )}$ \\| ${percent}\\% ${
+        )}$ \\| ${escape(percent)}\\% ${
           profitETH && `\\| ${escape(profitETH.toFixed(2))}ETH`
         }`
     )

@@ -36,10 +36,15 @@ import { Counter } from '../utils/metrics/counter';
 import { MetricData } from '../utils/metrics/data';
 import { Median } from '../utils/metrics/median';
 import { PriceOracle } from '../oracles';
+import logger from "../logger";
+
+const _6Hours = 6 * 60 * 60 * 1000;
 
 export class AnalyticsEngine {
   private priceOracle: PriceOracle;
   private getETHPrice: () => Promise<string>;
+  private lastPriceFetch = 0;
+  private lastPrice = '';
 
   constructor(
     private provider: JsonRpcProvider | WebSocketProvider,
@@ -47,7 +52,16 @@ export class AnalyticsEngine {
     getETHPrice: () => Promise<string>
   ) {
     this.priceOracle = new PriceOracle(provider, dexguruApiToken);
-    this.getETHPrice = retry(getETHPrice, { limit: 5, delayMs: 1_000 });
+    const _getETHPrice = retry(getETHPrice, { limit: 5, delayMs: 1_000 });
+    this.getETHPrice = async () => {
+      const now = Date.now();
+      if (now - this.lastPriceFetch < _6Hours) {
+        return this.lastPrice;
+      }
+      this.lastPriceFetch = now;
+      this.lastPrice = await _getETHPrice();
+      return this.lastPrice;
+    };
   }
 
   async execute(
@@ -158,6 +172,8 @@ export class AnalyticsEngine {
       walletState.removeToken(token);
     }
     //#endregion
+
+    logger.trace(`generating report for ${wallet}..`);
 
     const report = await createReport(
       this.provider,

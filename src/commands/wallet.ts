@@ -52,6 +52,8 @@ async function generateReport(
     return null;
   }
 
+  logger.trace(`got all swaps for ${wallet}`);
+
   const block = await provider.getBlock(blockStart);
   if (!block) {
     throw new Error('no block data');
