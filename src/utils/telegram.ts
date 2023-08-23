@@ -48,23 +48,16 @@ function financial(x: string): string {
   return Number.parseFloat(x).toFixed(2);
 }
 
-function xValue(x: string) {
-  const v = parseFloat(x);
-
-  if (v < 3.0) return '';
-  if (v < 5.0) return '🔥';
-  if (v < 8) return '🔥🔥';
-  if (v < 10.1) return '🔥🔥🔥';
+function xValue(x: number) {
+  if (x < 300) return '';
+  if (x < 500) return '🔥';
+  if (x < 800) return '🔥🔥';
+  if (x <= 1000) return '🔥🔥🔥';
   return '🔥️🔝️🔥️️️️';
 }
 
 export function markdownUserLink(text: string, username: string) {
   return `[${escape(text)}](tg://resolve?domain=${username})`;
-}
-
-function renderX(x?: string) {
-  if (!x) return '';
-  return `${escape(x)}x ${xValue(x)}`;
 }
 
 function divideTokensWithLossThreshold(
@@ -143,8 +136,8 @@ ${
           ({ token, symbol, profitUSD, profitETH, percent }) =>
             `${hyperLink(etherscanAddressLink(token), escape(symbol))} ${escape(
               profitUSD.toFixed(0)
-            )}$ \\| ${escape(percent)}\\% ${
-              profitETH && `\\| ${escape(profitETH.toFixed(2))}ETH`
+            )}$ \\| ${escape(percent)}\\%${xValue(percent)} ${
+              (profitETH && `\\| ${escape(profitETH.toFixed(2))}ETH`) || ''
             }`
         )
         .join('\n')}`
@@ -209,7 +202,7 @@ export function renderTokensList(
               : ''
             : profitUSD.toFixed(0)
         )}$ \\| ${escape(percent)}\\% ${
-          profitETH && `\\| ${escape(profitETH.toFixed(2))}ETH`
+          (profitETH && `\\| ${escape(profitETH.toFixed(2))}ETH`) || ''
         }`
     )
     .join('\n')}`;

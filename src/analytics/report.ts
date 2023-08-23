@@ -61,7 +61,7 @@ export async function createReport(
         }
         amountOfTokens.inc();
         amountInData.add(
-          tokenHistory.getInputUSD(usdToEthPrice),
+          tokenHistory.getAverageInputUSD(usdToEthPrice),
           tokenHistory.token
         );
         const balance = walletState.balance(tokenHistory.token);

@@ -67,7 +67,7 @@ export class TokenHistory {
     );
   }
 
-  getInputUSD(ethPrice: number): number {
+  getAverageInputUSD(ethPrice: number): number {
     return (
       Number(formatEther(this._avgInETH.compute())) * ethPrice +
       Number(formatUnits(this._avgInUSDT.compute(), 6)) +
@@ -76,17 +76,18 @@ export class TokenHistory {
     );
   }
 
+  getAllInputUSD(ethPrice: number): number {
+    return (
+      Number(formatEther(this._inETH)) * ethPrice +
+      Number(formatUnits(this._inUSDT, 6)) +
+      Number(formatUnits(this._inUSDC, 6)) +
+      Number(formatUnits(this._inDAI, 18))
+    );
+  }
+
   getProfitInPercent(ethPrice: number): number {
-    if (
-      this._inETH !== 0n &&
-      this._inDAI === 0n &&
-      this._inUSDC === 0n &&
-      this._inUSDT === 0n &&
-      this._balanceUSD === 0
-    )
-      return to100PercentsBigInt(this._inETH, this._ETH);
     return to100Percents(
-      this.getInputUSD(ethPrice),
+      this.getAllInputUSD(ethPrice),
       this.getProfitUSD(ethPrice)
     );
   }

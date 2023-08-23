@@ -36,7 +36,7 @@ import { Counter } from '../utils/metrics/counter';
 import { MetricData } from '../utils/metrics/data';
 import { Median } from '../utils/metrics/median';
 import { PriceOracle } from '../oracles';
-import logger from "../logger";
+import logger from '../logger';
 
 const _6Hours = 6 * 60 * 60 * 1000;
 
@@ -198,7 +198,7 @@ export class AnalyticsEngine {
     const averageInAmount = averageInAmountMetric.compute();
     const tokensWithPNLMoreThanAverageIn = new Set<string>();
     for (const tokenHistory of history.tokens) {
-      const in_ = tokenHistory.getInputUSD(usdToEthPrice);
+      const in_ = tokenHistory.getAverageInputUSD(usdToEthPrice);
       if (in_ >= averageInAmount) {
         tokensWithPNLMoreThanAverageIn.add(tokenHistory.token);
       }
