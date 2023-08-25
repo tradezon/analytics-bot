@@ -1,6 +1,7 @@
 // @ts-expect-error
 import EtherscanApi from 'etherscan-api';
 import { Telegraf, Scenes, Markup } from 'telegraf';
+import type { Markup as MarkupClass } from 'telegraf/src/markup';
 import { getAddress, JsonRpcProvider, WebSocketProvider } from 'ethers';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -13,6 +14,7 @@ import { renderLosses, renderShort, renderTokensList } from '../utils/telegram';
 import { Report } from '../types';
 import { findBlockByTimestamp } from '../utils/find-block-by-timestamp';
 import logger from '../logger';
+import { FollowsRepository, User } from '../repository/types';
 
 const secondsInDay = 24 * 60 * 60;
 const monthInSeconds = 30 * secondsInDay;
@@ -78,6 +80,7 @@ export function wallet(
   bot: Telegraf,
   provider: JsonRpcProvider | WebSocketProvider,
   dexguru: string,
+  followsRepository: FollowsRepository,
   getBlockNumber: () => number
 ): BaseScene<any> {
   const etherscanApi = EtherscanApi.init('QMW2MPMAM4T9HWH3STPPK836GRWQX1QW3Q');
@@ -88,6 +91,7 @@ export function wallet(
 
   let exec = false;
   const queue: Array<{
+    user: User;
     chatId: number;
     messageId?: number;
     wallet: string;
@@ -95,9 +99,13 @@ export function wallet(
     blockEnd?: number;
     period?: [number, number];
   }> = [];
-  const paramsForShortView = (report: Report): [string, any] => {
+  const paramsForShortView = async (
+    report: Report,
+    user: User | undefined
+  ): Promise<[string, MarkupClass<any>]> => {
     const [shortReport, losses] = renderShort(report);
     const buttons: any[][] = [[], [], []];
+
     if (losses != 0) {
       buttons[0].push(
         Markup.button.callback(
@@ -124,23 +132,33 @@ export function wallet(
       );
     }
 
+    if (user) {
+      const follows = await followsRepository.getUserFollows(user);
+      const isFollowing = follows.follows.has(report.address.toLowerCase());
+      (buttons[0].length === 0 ? buttons[0] : buttons[1]).push(
+        Markup.button.callback(
+          `Follow ${isFollowing ? '✅' : '❌'}️`,
+          `follow_${report.id}`
+        )
+      );
+    }
+
     return [
       shortReport,
-      {
-        parse_mode: 'MarkdownV2',
-        ...Markup.inlineKeyboard(buttons.filter((b) => b.length !== 0)),
-        disable_web_page_preview: true
-      }
+      Markup.inlineKeyboard(buttons.filter((b) => b.length !== 0))
     ];
   };
-  const replyWithShortView = (
+  const replyWithShortView = async (
     report: Report,
+    user: User,
     chatId: number,
     message?: number
   ) => {
-    const [data, extra] = paramsForShortView(report);
+    const [data, markup] = await paramsForShortView(report, user);
     bot.telegram.sendMessage(chatId, data, {
-      ...extra,
+      ...markup,
+      parse_mode: 'MarkdownV2',
+      disable_web_page_preview: true,
       reply_to_message_id: message
     });
   };
@@ -164,6 +182,7 @@ export function wallet(
     exec = true;
     logger.info(`Processing ${queue[0].wallet}`);
     for (const {
+      user,
       chatId,
       messageId,
       wallet,
@@ -184,7 +203,7 @@ export function wallet(
 
         if (report) {
           reportsCache.set(report.id, report);
-          replyWithShortView(report, chatId, messageId);
+          replyWithShortView(report, user, chatId, messageId);
         } else {
           bot.telegram.sendMessage(
             chatId,
@@ -292,6 +311,7 @@ export function wallet(
       ctx.editMessageText(`Preparing report for ${wallet}... ⌛`);
 
       queue.push({
+        user: ctx.state.user,
         chatId: ctx.chat!.id,
         messageId: ctx.message?.message_id,
         wallet,
@@ -338,6 +358,7 @@ export function wallet(
         ctx.reply(`Preparing report for ${wallet}... ⌛`);
 
         queue.push({
+          user: ctx.state.user,
           chatId: ctx.chat!.id,
           messageId: ctx.message?.message_id,
           wallet,
@@ -406,7 +427,13 @@ export function wallet(
       return ctx.replyWithHTML('<b>Report not found</b> ❌');
     }
 
-    ctx.editMessageText(...paramsForShortView(report));
+    const [text, markup] = await paramsForShortView(report, ctx.state.user);
+
+    ctx.editMessageText(text, {
+      ...markup,
+      parse_mode: 'MarkdownV2',
+      disable_web_page_preview: true
+    });
   });
 
   bot.action(/^honeypots_(.+)/, (ctx) => {
@@ -426,6 +453,24 @@ export function wallet(
         parse_mode: 'MarkdownV2'
       }
     );
+  });
+
+  bot.action(/^follow_(.+)/, async (ctx) => {
+    const id = ctx.match[1];
+    const report = reportsCache.get(id);
+    if (!report) {
+      return ctx.replyWithHTML('<b>Report not found</b> ❌');
+    }
+
+    const bool = await followsRepository.toggleFollow(
+      ctx.state.user,
+      report.address
+    );
+
+    if (bool) {
+      const [, markup] = await paramsForShortView(report, ctx.state.user);
+      return ctx.editMessageReplyMarkup(markup.reply_markup);
+    }
   });
 
   return scenarioTypeWallet as any;

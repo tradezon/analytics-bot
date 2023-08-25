@@ -18,7 +18,7 @@ export interface User {
 
 export interface Follows {
   telegram_username: string;
-  follows: string[];
+  follows: Set<string>;
 }
 
 export interface UserRepository {
@@ -36,5 +36,6 @@ export interface UserRepository {
 
 export interface FollowsRepository {
   getUserFollows(user: User): Promise<Follows>;
+  toggleFollow(user: User, address: string): Promise<boolean>;
   updateUserFollows(user: User, follows: Follows): Promise<boolean>;
 }

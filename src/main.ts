@@ -11,6 +11,7 @@ import { findBlockByTimestamp } from './utils/find-block-by-timestamp';
 import logger from './logger';
 import { Tier, User } from './repository/types';
 import { createSqliteUserRepository } from './repository/user';
+import { createSqliteFollowsRepository } from './repository/follows';
 
 const WALLET_TEXT = 'Wallet analytics 💰';
 const ADMIN_TEXT = 'Admin panel 👑';
@@ -63,6 +64,7 @@ async function main() {
     migrationsPath: path.resolve(__dirname, 'migrations')
   });
   const userRepository = createSqliteUserRepository(db);
+  const followsRepository = createSqliteFollowsRepository(db);
 
   let blockNumber = initialBlock.number;
   setInterval(() => blockNumber++, 10 * 1000).unref();
@@ -70,16 +72,17 @@ async function main() {
   if (config.dexguru) logger.info('Using dexguru api..');
   const bot = new Telegraf(config.token);
   bot.use(Telegraf.log());
+  bot.use(createAuthMiddleware(userRepository));
   const adminScenario = await admin(userRepository);
   const walletScenario = wallet(
     bot,
     provider,
     config.dexguru,
+    followsRepository,
     () => blockNumber
   );
   const stage = new Scenes.Stage([walletScenario as any, adminScenario as any]);
   bot.use(session());
-  bot.use(createAuthMiddleware(userRepository));
   bot.use(
     scenes([
       [ADMIN_TEXT, adminScenario.id],
