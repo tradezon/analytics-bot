@@ -1,27 +1,7 @@
-import path from 'path';
-import { Scenes, Markup } from 'telegraf';
+import { Markup, Scenes } from 'telegraf';
 import type { BaseScene } from 'telegraf/src/scenes/base';
-import sqlite3 from 'sqlite3';
-import { Database, open } from 'sqlite';
 import { markdownUserLink } from '../utils/telegram';
-
-export enum Lang {
-  EN = 0,
-  RU = 1
-}
-
-export enum Tier {
-  GOD_MODE = 0,
-  TIER0 = 5
-}
-
-export interface User {
-  id: number;
-  telegram_username: string;
-  lang: Lang;
-  tier: Tier;
-  last_access: number;
-}
+import { Lang, Tier, User, UserRepository } from '../repository/types';
 
 function tierToString(tier: Tier): string {
   switch (tier) {
@@ -34,17 +14,9 @@ function tierToString(tier: Tier): string {
   }
 }
 
-export async function admin(): Promise<[BaseScene<any>, Database]> {
-  const filePath = path.resolve(__dirname, 'anal_bot.db');
-  const db = await open({
-    filename: filePath,
-    driver: sqlite3.Database
-  });
-  console.log(`Using db from ${filePath}`);
-  console.log(`Migrating db..`);
-  await db.migrate({
-    migrationsPath: path.resolve(__dirname, 'migrations')
-  });
+export async function admin(
+  repository: UserRepository
+): Promise<BaseScene<any>> {
   const usersAction = 'USERS_ACTION';
   const addUserAction = 'ADD_USER_ACTION';
   const removeUserAction = 'REMOVE_USER_ACTION';
@@ -60,7 +32,7 @@ export async function admin(): Promise<[BaseScene<any>, Database]> {
     );
   });
   scenario.action(usersAction, async (ctx) => {
-    const res: User[] = await db.all('SELECT * from User');
+    const res: User[] = await repository.getUsers();
     ctx.replyWithMarkdownV2(
       `Users:\n${res
         .map(
@@ -78,7 +50,7 @@ export async function admin(): Promise<[BaseScene<any>, Database]> {
     ctx.replyWithHTML('<b>Send user link</b> 👤');
   });
   scenario.action(removeUserAction, async (ctx) => {
-    const res: User[] = await db.all('SELECT * from User');
+    const res: User[] = await repository.getUsers();
     ctx.replyWithMarkdownV2(
       `Users:\n${res
         .map(
@@ -96,7 +68,7 @@ export async function admin(): Promise<[BaseScene<any>, Database]> {
     if (!match) return next();
     const id = match[1];
     try {
-      await db.run('DELETE FROM User WHERE telegram_username LIKE (?)', id);
+      await repository.deleteUser(id);
       ctx.replyWithHTML('<b>Removed</b> 🤙');
       (ctx as any).scene.leave();
     } catch {
@@ -114,10 +86,7 @@ export async function admin(): Promise<[BaseScene<any>, Database]> {
     }
     const username = text.trim();
     try {
-      await db.run(
-        'INSERT INTO User (telegram_username, lang, tier, last_access) VALUES ((?), 0, 3, 0)',
-        username.startsWith('@') ? username.slice(1) : username
-      );
+      await repository.addUser(username, Lang.EN, Tier.TIER0);
       ctx.replyWithHTML('<b>Added</b> 🤙');
       (ctx as any).scene.state.inAdd = false;
       (ctx as any).scene.leave();
@@ -126,5 +95,5 @@ export async function admin(): Promise<[BaseScene<any>, Database]> {
     }
   });
 
-  return [scenario as any, db];
+  return scenario as any;
 }

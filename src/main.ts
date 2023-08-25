@@ -1,12 +1,16 @@
 import path from 'path';
+import { open } from 'sqlite';
+import sqlite3 from 'sqlite3';
 import { Context, Markup, Scenes, session, Telegraf } from 'telegraf';
 import { JsonRpcProvider, WebSocketProvider } from 'ethers';
 import { readConfig } from './config';
 import { wallet } from './commands/wallet';
-import { admin, Tier, User } from './commands/admin';
+import { admin } from './commands/admin';
 import { createAuthMiddleware } from './utils/telegram-auth-middleware';
 import { findBlockByTimestamp } from './utils/find-block-by-timestamp';
 import logger from './logger';
+import { Tier, User } from './repository/types';
+import { createSqliteUserRepository } from './repository/user';
 
 const WALLET_TEXT = 'Wallet analytics 💰';
 const ADMIN_TEXT = 'Admin panel 👑';
@@ -46,13 +50,27 @@ async function main() {
     provider
   );
   logger.level = 'trace';
+
+  /* database */
+  const filePath = path.resolve(__dirname, 'anal_bot.db');
+  const db = await open({
+    filename: filePath,
+    driver: sqlite3.Database
+  });
+  logger.info(`Using db from ${filePath}`);
+  logger.info(`Migrating db..`);
+  await db.migrate({
+    migrationsPath: path.resolve(__dirname, 'migrations')
+  });
+  const userRepository = createSqliteUserRepository(db);
+
   let blockNumber = initialBlock.number;
   setInterval(() => blockNumber++, 10 * 1000).unref();
   logger.info(`Initial block number ${blockNumber}`);
   if (config.dexguru) logger.info('Using dexguru api..');
   const bot = new Telegraf(config.token);
   bot.use(Telegraf.log());
-  const [adminScenario, db] = await admin();
+  const adminScenario = await admin(userRepository);
   const walletScenario = wallet(
     bot,
     provider,
@@ -61,7 +79,7 @@ async function main() {
   );
   const stage = new Scenes.Stage([walletScenario as any, adminScenario as any]);
   bot.use(session());
-  bot.use(createAuthMiddleware(db));
+  bot.use(createAuthMiddleware(userRepository));
   bot.use(
     scenes([
       [ADMIN_TEXT, adminScenario.id],
@@ -87,7 +105,7 @@ async function main() {
 
   bot.launch();
 
-  console.log('Running bot..');
+  logger.info('Running bot..');
 
   const shutdown = () => {
     db.close();
