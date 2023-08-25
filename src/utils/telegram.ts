@@ -15,6 +15,9 @@ import {
 } from './const';
 import { saveBalance } from './save-balance';
 
+const LOWER_PERCENT = -15;
+const HIGHER_PERCENT = 15;
+
 export const escape = (str: any) =>
   str
     .toString()
@@ -125,24 +128,34 @@ export function renderShort(report: Report): [string, number] {
   for (const coin of lossCoins) loss += coin.profitUSD;
   for (const coin of profitableCoins) profit += coin.profitUSD;
 
+  const [lower, higher] = filterTokensByPercent(
+    profitableCoins,
+    HIGHER_PERCENT
+  );
+  const restProfit = lower.reduce((acc, t) => acc + t.profitUSD, 0);
+
   return [
     `${header(report)}
 ${
   profitableCoins.length > 0
-    ? `\n📈 *Profitable coins* \\(${escape(
-        profit.toFixed(0)
-      )}$\\):\n${profitableCoins
+    ? `\n📈 *Profitable coins* \\(${escape(profit.toFixed(0))}$\\):\n${higher
         .map(
           ({ token, symbol, profitUSD, profitETH, percent }) =>
             `${hyperLink(etherscanAddressLink(token), escape(symbol))} ${escape(
               profitUSD.toFixed(0)
-            )}$ \\| ${escape(percent)}\\%${xValue(percent)} ${
+            )}$ \\| \\+${escape(percent)}\\%${xValue(percent)} ${
               (profitETH && `\\| ${escape(profitETH.toFixed(2))}ETH`) || ''
             }`
         )
         .join('\n')}`
     : ''
-}${
+}${`\n🧩 *Tokens with \\<\\+${escape(
+      HIGHER_PERCENT
+    )}\\% TOKEN\\_PNL \\(${escape(restProfit.toFixed(0))}\\$\\)*\\:\n${higher
+      .map(({ token, symbol }) =>
+        hyperLink(etherscanAddressLink(token), escape(symbol))
+      )
+      .join('\\, ')}`}${
       report.tokensInMultiTokensSwaps.length > 0
         ? `\n🧮 *Tokens in multitokens swaps*:\n${report.tokensInMultiTokensSwaps
             .map(({ token, symbol }) =>
@@ -168,18 +181,32 @@ export function header(report: Report) {
     )
     .filter((m) => m)
     .join(' \\| ');
-  return `Report for address ${address(report.address)} From ${escape(
+  return `Report for address \`${report.address}\` From ${escape(
     formatDate(report.period[0])
   )} to ${escape(formatDate(report.period[1]))}\n${metrics}`;
 }
 
 export function renderLosses(report: Report) {
-  const [, nonprofitableCoins] = divideTokensWithLossThreshold(
-    report.tokens,
-    0
-  );
+  let [, nonprofitableCoins] = divideTokensWithLossThreshold(report.tokens, 0);
+  const tokens = nonprofitableCoins.reverse();
+  const [lower, higher] = filterTokensByPercent(tokens, LOWER_PERCENT);
 
-  return renderTokensList('📉 *Losses*\\:', report, nonprofitableCoins);
+  const str = renderTokensList('📉 *Losses*\\:', report, lower);
+
+  if (higher.length === 0) return str;
+
+  const restLosses = higher.reduce((acc, t) => acc + t.profitUSD, 0);
+
+  return (
+    str +
+    `\n🧩 *Tokens with \\>${escape(LOWER_PERCENT)}\\% TOKEN\\_PNL \\(${escape(
+      restLosses.toFixed(0)
+    )}\\$\\)*\\:\n${higher
+      .map(({ token, symbol }) =>
+        hyperLink(etherscanAddressLink(token), escape(symbol))
+      )
+      .join('\\, ')}`
+  );
 }
 
 export function renderTokensList(
@@ -207,3 +234,14 @@ export function renderTokensList(
     )
     .join('\n')}`;
 }
+
+const filterTokensByPercent = (tokens: TokenInfo[], percent: number) => {
+  const filtered: TokenInfo[] = [];
+  const other: TokenInfo[] = [];
+  for (const t of tokens) {
+    const arr = t.percent > percent ? other : filtered;
+    arr.push(t);
+  }
+
+  return [filtered, other];
+};

@@ -87,11 +87,7 @@ export function wallet(
     blockEnd?: number;
     period?: [number, number];
   }> = [];
-  const replyWithShortView = async (
-    report: Report,
-    chatId: number,
-    message?: number
-  ) => {
+  const paramsForShortView = (report: Report): [string, any] => {
     const [shortReport, losses] = renderShort(report);
     const buttons: any[][] = [[], [], []];
     if (losses != 0) {
@@ -120,10 +116,23 @@ export function wallet(
       );
     }
 
-    bot.telegram.sendMessage(chatId, shortReport, {
-      parse_mode: 'MarkdownV2',
-      ...Markup.inlineKeyboard(buttons.filter((b) => b.length !== 0)),
-      disable_web_page_preview: true,
+    return [
+      shortReport,
+      {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard(buttons.filter((b) => b.length !== 0)),
+        disable_web_page_preview: true
+      }
+    ];
+  };
+  const replyWithShortView = (
+    report: Report,
+    chatId: number,
+    message?: number
+  ) => {
+    const [data, extra] = paramsForShortView(report);
+    bot.telegram.sendMessage(chatId, data, {
+      ...extra,
       reply_to_message_id: message
     });
   };
@@ -294,11 +303,13 @@ export function wallet(
     if (!report) {
       return ctx.replyWithHTML('<b>Report not found</b> ❌');
     }
-    return ctx.replyWithMarkdownV2(renderLosses(report), {
+
+    return ctx.editMessageText(renderLosses(report), {
       ...Markup.inlineKeyboard([
         Markup.button.callback(`Return to report ⬅️`, `short_${report.id}`)
       ]),
-      disable_web_page_preview: true
+      disable_web_page_preview: true,
+      parse_mode: 'MarkdownV2'
     });
   });
 
@@ -308,7 +319,8 @@ export function wallet(
     if (!report) {
       return ctx.replyWithHTML('<b>Report not found</b> ❌');
     }
-    return ctx.replyWithMarkdownV2(
+
+    return ctx.editMessageText(
       renderTokensList(
         '📊 *Current coins in wallet*\\:',
         report,
@@ -323,18 +335,20 @@ export function wallet(
         ...Markup.inlineKeyboard([
           Markup.button.callback(`Return to report ⬅️`, `short_${report.id}`)
         ]),
-        disable_web_page_preview: true
+        disable_web_page_preview: true,
+        parse_mode: 'MarkdownV2'
       }
     );
   });
 
-  bot.action(/^short_(.+)/, (ctx) => {
+  bot.action(/^short_(.+)/, async (ctx) => {
     const id = ctx.match[1];
     const report = reportsCache.get(id);
     if (!report) {
       return ctx.replyWithHTML('<b>Report not found</b> ❌');
     }
-    return replyWithShortView(report, ctx.chat!.id);
+
+    ctx.editMessageText(...paramsForShortView(report));
   });
 
   bot.action(/^honeypots_(.+)/, (ctx) => {
@@ -344,13 +358,14 @@ export function wallet(
       return ctx.replyWithHTML('<b>Report not found</b> ❌');
     }
 
-    return ctx.replyWithMarkdownV2(
+    return ctx.editMessageText(
       renderTokensList('⚠️ *Honeypots*\\:', report, report.honeypots.tokens),
       {
         ...Markup.inlineKeyboard([
           Markup.button.callback(`Return to report ⬅️`, `short_${report.id}`)
         ]),
-        disable_web_page_preview: true
+        disable_web_page_preview: true,
+        parse_mode: 'MarkdownV2'
       }
     );
   });
