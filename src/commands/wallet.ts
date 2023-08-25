@@ -14,7 +14,15 @@ import { Report } from '../types';
 import { findBlockByTimestamp } from '../utils/find-block-by-timestamp';
 import logger from '../logger';
 
-const _3MonthsInSeconds = 3 * 30 * 24 * 60 * 60;
+const secondsInDay = 24 * 60 * 60;
+const monthInSeconds = 30 * secondsInDay;
+const _3MonthsInSeconds = 3 * monthInSeconds;
+const _7DaysInSeconds = 7 * secondsInDay;
+const _14DaysInSeconds = 14 * secondsInDay;
+const secondsPerBlock = 12;
+const blocksIn7Days = Math.ceil(_7DaysInSeconds / secondsPerBlock);
+const blocksIn14Days = Math.ceil(_14DaysInSeconds / secondsPerBlock);
+const blocksInMonth = Math.ceil(monthInSeconds / secondsPerBlock);
 
 async function generateReport(
   etherscanApi: any,
@@ -136,6 +144,21 @@ export function wallet(
       reply_to_message_id: message
     });
   };
+  const computeBlockStart =
+    (blocksRange: number) =>
+    async (ctx: any): Promise<[number, number] | null> => {
+      const current = await provider.getBlock('latest');
+      if (!current) {
+        logger.error('current block not found');
+        ctx.replyWithHTML('<b>Internal error</b> ❌');
+        ctx.scene.leave();
+        return null;
+      }
+      return [current.number - blocksRange, current.number];
+    };
+  const lastWeekStart = computeBlockStart(blocksIn7Days);
+  const last2WeekStart = computeBlockStart(blocksIn14Days);
+  const lastMonthStart = computeBlockStart(blocksInMonth);
   const generateReports = async () => {
     if (queue.length === 0 || exec) return;
     exec = true;
@@ -207,8 +230,15 @@ export function wallet(
         (ctx.wizard.state as any).address = addr;
         ctx.reply('Select time range:', {
           ...Markup.inlineKeyboard([
-            Markup.button.callback('Latest 🔎', 'Latest 🔎'),
-            Markup.button.callback('Select period 🚩', 'Select period 🚩')
+            [
+              Markup.button.callback('Latest 🔎', 'Latest 🔎'),
+              Markup.button.callback('Select period 🚩', 'Select period 🚩')
+            ],
+            [Markup.button.callback('Last month', 'Last month')],
+            [
+              Markup.button.callback('Last week', 'Last week'),
+              Markup.button.callback('Last 2 weeks', 'Last 2 weeks')
+            ]
           ])
         });
         ctx.wizard.next();
@@ -221,24 +251,52 @@ export function wallet(
     async (ctx) => {
       if (!(ctx.callbackQuery as any)?.data) return ctx.wizard.back();
       const data = (ctx.callbackQuery as any).data;
-      if (data === 'Select period 🚩') {
-        ctx.reply(
-          'Enter period in format DD.MM.YYYY DD.MM.YYYY, e.g. 25.01.2022 30.06.2022\nMaximum range is 3 month.'
-        );
-        return ctx.wizard.next();
+      let blockStart: number | undefined = undefined;
+      let blockEnd: number | undefined = undefined;
+      switch (data) {
+        case 'Select period 🚩': {
+          ctx.editMessageText(
+            'Enter period in format DD.MM.YYYY DD.MM.YYYY, e.g. 25.01.2022 30.06.2022\nMaximum range is 3 month.'
+          );
+          return ctx.wizard.next();
+        }
+        case 'Last week': {
+          const range = await lastWeekStart(ctx);
+          if (range === null) return;
+          blockStart = range[0];
+          blockEnd = range[1];
+          break;
+        }
+        case 'Last 2 weeks': {
+          const range = await last2WeekStart(ctx);
+          if (range === null) return;
+          blockStart = range[0];
+          blockEnd = range[1];
+          break;
+        }
+        case 'Last month': {
+          const range = await lastMonthStart(ctx);
+          if (range === null) return;
+          blockStart = range[0];
+          blockEnd = range[1];
+          break;
+        }
+        default:
+          break;
       }
       const wallet = (ctx.wizard.state as any).address;
       if (!wallet) {
         ctx.replyWithHTML('<b>Wallet not found</b> ❌');
         return ctx.scene.leave();
       }
-      ctx.reply(`Preparing report for ${wallet}... ⌛`);
+      ctx.editMessageText(`Preparing report for ${wallet}... ⌛`);
 
       queue.push({
         chatId: ctx.chat!.id,
         messageId: ctx.message?.message_id,
         wallet,
-        blockStart: getBlockNumber()
+        blockStart: blockStart || getBlockNumber(),
+        blockEnd
       });
       return ctx.scene.leave();
     },
