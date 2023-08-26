@@ -5,21 +5,39 @@ export function createSqliteUserRepository(db: Database): UserRepository {
   return {
     async addUser(user: string, lang: Lang, tier: Tier): Promise<boolean> {
       const row = await db.run(
-        'INSERT INTO User (telegram_username, lang, tier, last_access) VALUES ((?), (?), (?), 0)',
+        'INSERT INTO User (telegram_username, lang, tier, last_access, chat_id) VALUES ((?), (?), (?), 0, 0)',
         user.startsWith('@') ? user.slice(1) : user,
         lang,
         tier
       );
       return row.changes !== 0;
     },
-    async updateUser(user: string, lang: Lang, tier: Tier, lastAccess = 0) {
-      const row = await db.run(
-        'UPDATE User SET lang=(?), last_access=(?), tier=(?) WHERE telegram_username LIKE (?)',
-        lang,
-        lastAccess,
-        tier,
-        user.startsWith('@') ? user.slice(1) : user
-      );
+    async updateUser(
+      user: string,
+      lang: Lang,
+      tier: Tier,
+      lastAccess = 0,
+      chat_id
+    ) {
+      let row: any;
+      if (chat_id) {
+        row = await db.run(
+          'UPDATE User SET lang=(?), last_access=(?), tier=(?), chat_id=(?) WHERE telegram_username LIKE (?)',
+          lang,
+          lastAccess,
+          tier,
+          chat_id,
+          user.startsWith('@') ? user.slice(1) : user
+        );
+      } else {
+        row = await db.run(
+          'UPDATE User SET lang=(?), last_access=(?), tier=(?) WHERE telegram_username LIKE (?)',
+          lang,
+          lastAccess,
+          tier,
+          user.startsWith('@') ? user.slice(1) : user
+        );
+      }
       return row.changes !== 0;
     },
     async deleteUser(id: string): Promise<boolean> {

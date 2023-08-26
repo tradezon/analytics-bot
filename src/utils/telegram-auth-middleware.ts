@@ -1,6 +1,7 @@
-import type { Database } from 'sqlite';
 import type { Middleware, Context } from 'telegraf';
-import { Lang, User, UserRepository } from '../repository/types';
+import { Lang } from '../repository/types';
+import type { User, UserRepository } from '../repository/types';
+import logger from '../logger';
 
 export function createAuthMiddleware(
   repository: UserRepository
@@ -18,18 +19,27 @@ export function createAuthMiddleware(
     } catch {
       return accessDenied(ctx);
     }
-    ctx.state.user = row;
-    try {
-      const langFromTelegram = ctx.from?.language_code;
-      repository.updateUser(
-        username,
+    const langFromTelegram = ctx.from?.language_code;
+    const user: User = {
+      ...row,
+      lang:
         row.last_access === 0
           ? langFromTelegram === 'ua' || langFromTelegram === 'ru'
             ? Lang.RU
             : Lang.EN
           : row.lang,
-        row.tier,
-        Date.now()
+      last_access: Date.now(),
+      chat_id: ctx.chat?.id || row.chat_id
+    };
+    ctx.state.user = user;
+    logger.trace(`new access user=${username} chat_id=${user.chat_id}`);
+    try {
+      repository.updateUser(
+        user.telegram_username,
+        user.lang,
+        user.tier,
+        user.last_access,
+        user.chat_id
       );
     } catch {}
     next();

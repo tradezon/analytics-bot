@@ -14,6 +14,7 @@ export interface User {
   lang: Lang;
   tier: Tier;
   last_access: number;
+  chat_id: number;
 }
 
 export interface Follows {
@@ -28,7 +29,8 @@ export interface UserRepository {
     user: string,
     lang: Lang,
     tier: Tier,
-    lastAccess?: number
+    lastAccess?: number,
+    chatId?: number
   ): Promise<boolean>;
   getUser(user: string): Promise<User | null>;
   getUsers(): Promise<User[]>;
