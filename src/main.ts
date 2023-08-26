@@ -12,6 +12,7 @@ import logger from './logger';
 import { Tier, User } from './repository/types';
 import { createSqliteUserRepository } from './repository/user';
 import { createSqliteFollowsRepository } from './repository/follows';
+import { createNotificationService } from './bot/notification';
 
 const WALLET_TEXT = 'Wallet analytics 💰';
 const ADMIN_TEXT = 'Admin panel 👑';
@@ -71,11 +72,13 @@ async function main() {
   logger.info(`Initial block number ${blockNumber}`);
   if (config.dexguru) logger.info('Using dexguru api..');
   const bot = new Telegraf(config.token);
+  const notification = createNotificationService(userRepository, bot);
   bot.use(Telegraf.log());
   bot.use(createAuthMiddleware(userRepository));
   const adminScenario = await admin(userRepository);
   const walletScenario = wallet(
     bot,
+    notification,
     provider,
     config.dexguru,
     followsRepository,

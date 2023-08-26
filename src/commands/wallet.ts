@@ -15,6 +15,7 @@ import { Report } from '../types';
 import { findBlockByTimestamp } from '../utils/find-block-by-timestamp';
 import logger from '../logger';
 import { FollowsRepository, User } from '../repository/types';
+import { NotificationService } from '../bot/notification';
 
 const secondsInDay = 24 * 60 * 60;
 const monthInSeconds = 30 * secondsInDay;
@@ -78,6 +79,7 @@ async function generateReport(
 
 export function wallet(
   bot: Telegraf,
+  notification: NotificationService,
   provider: JsonRpcProvider | WebSocketProvider,
   dexguru: string,
   followsRepository: FollowsRepository,
@@ -92,7 +94,6 @@ export function wallet(
   let exec = false;
   const queue: Array<{
     user: User;
-    chatId: number;
     messageId?: number;
     wallet: string;
     blockStart: number;
@@ -151,11 +152,10 @@ export function wallet(
   const replyWithShortView = async (
     report: Report,
     user: User,
-    chatId: number,
     message?: number
   ) => {
     const [data, markup] = await paramsForShortView(report, user);
-    bot.telegram.sendMessage(chatId, data, {
+    return notification.notify(user, data, {
       ...markup,
       parse_mode: 'MarkdownV2',
       disable_web_page_preview: true,
@@ -183,7 +183,6 @@ export function wallet(
     logger.info(`Processing ${queue[0].wallet}`);
     for (const {
       user,
-      chatId,
       messageId,
       wallet,
       blockStart,
@@ -203,10 +202,10 @@ export function wallet(
 
         if (report) {
           reportsCache.set(report.id, report);
-          replyWithShortView(report, user, chatId, messageId);
+          replyWithShortView(report, user, messageId);
         } else {
-          bot.telegram.sendMessage(
-            chatId,
+          notification.notify(
+            user,
             `Trade transactions was not found for ${wallet} 💸`,
             {
               reply_to_message_id: messageId
@@ -215,8 +214,8 @@ export function wallet(
         }
       } catch (e: any) {
         logger.error(e);
-        bot.telegram.sendMessage(
-          chatId,
+        notification.notify(
+          user,
           `<b>Execution error for ${wallet}</b> Try later.. ❌`,
           {
             parse_mode: 'HTML',
@@ -312,7 +311,6 @@ export function wallet(
 
       queue.push({
         user: ctx.state.user,
-        chatId: ctx.chat!.id,
         messageId: ctx.message?.message_id,
         wallet,
         blockStart: blockStart || getBlockNumber(),
@@ -359,7 +357,6 @@ export function wallet(
 
         queue.push({
           user: ctx.state.user,
-          chatId: ctx.chat!.id,
           messageId: ctx.message?.message_id,
           wallet,
           blockStart: blockStart.number,

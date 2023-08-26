@@ -54,6 +54,10 @@ export function createSqliteUserRepository(db: Database): UserRepository {
       );
       return row || null;
     },
+    async getUserById(id: number): Promise<User | null> {
+      const row = await db.get('SELECT * from User WHERE id=(?)', id);
+      return row || null;
+    },
     getUsers(): Promise<User[]> {
       return db.all('SELECT * from User');
     }

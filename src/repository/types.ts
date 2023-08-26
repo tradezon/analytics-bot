@@ -33,6 +33,7 @@ export interface UserRepository {
     chatId?: number
   ): Promise<boolean>;
   getUser(user: string): Promise<User | null>;
+  getUserById(id: number): Promise<User | null>;
   getUsers(): Promise<User[]>;
 }
 
