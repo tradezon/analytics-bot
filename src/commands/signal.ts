@@ -37,7 +37,7 @@ export function signal(
     return ctx.reply(
       join(
         [
-          join(['🛎️️️', bold('Signals settings:'), '\n']),
+          join(['🛎️️️ ', bold('Signals settings:'), '\n']),
           '📍 Follows - receive signals from followed addresses tradings.',
           join([
             '🚧 Spoiler text - hide addresses in signals 👉 ',

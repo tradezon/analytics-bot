@@ -1,3 +1,4 @@
+import EventEmitter from 'events';
 import type { Database } from 'sqlite';
 import { Follows, FollowsRepository, User } from './types';
 
@@ -11,6 +12,7 @@ function stringToData(str: string) {
 
 export function createSqliteFollowsRepository(db: Database): FollowsRepository {
   const cache = new Map<number, Follows>();
+  const eventEmitter = new EventEmitter();
   const getUserFollows = async (user: User): Promise<Follows> => {
     if (cache.has(user.id)) {
       return cache.get(user.id)!;
@@ -64,14 +66,34 @@ export function createSqliteFollowsRepository(db: Database): FollowsRepository {
     return updated;
   };
   return {
+    async getAll(): Promise<Array<{ id: number; follows: string[] }>> {
+      const data = await db.all('SELECT * from Follows');
+      const result: Array<{ id: number; follows: string[] }> = [];
+
+      for (const entry of data) {
+        result.push({
+          id: entry.telegram_id as number,
+          follows: stringToData(entry.follows)
+        });
+      }
+
+      return result;
+    },
     getUserFollows,
     async toggleFollow(user: User, address: string): Promise<boolean> {
       const lowerCase = address.toLowerCase();
       const follows = await getUserFollows(user);
       const had = follows.follows.delete(lowerCase);
       if (!had) follows.follows.add(lowerCase);
-      return updateUserFollows(user, follows);
+      const result = await updateUserFollows(user, follows);
+      if (result) {
+        eventEmitter.emit(had ? 'unfollow' : 'follow', user, address);
+      }
+      return result;
     },
-    updateUserFollows
+    updateUserFollows,
+    on(event, cb) {
+      eventEmitter.on(event, cb);
+    }
   };
 }

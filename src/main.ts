@@ -15,6 +15,8 @@ import { createSqliteFollowsRepository } from './repository/follows';
 import { createNotificationService } from './bot/notification';
 import { createSqliteSignalRepository } from './repository/signal';
 import { signal } from './commands/signal';
+import { followTradesEngine } from './follow-trades';
+import { renderSignal } from './utils/telegram';
 
 const WALLET_TEXT = 'Wallet analytics 💰';
 const ADMIN_TEXT = 'Admin panel 👑';
@@ -70,6 +72,43 @@ async function main() {
   const userRepository = createSqliteUserRepository(db);
   const followsRepository = createSqliteFollowsRepository(db);
   const signalRepository = createSqliteSignalRepository(db);
+
+  logger.info('initializing signals..');
+
+  const followTrades = await followTradesEngine(provider, async (signal) => {
+    const user = await userRepository.getUserById(signal.userId);
+    if (!user) {
+      logger.warn('No user data for signal');
+      return;
+    }
+    const settings = await signalRepository.getSettings(user);
+    if (!settings.follows) {
+      logger.info(
+        `No signal setting is enabled for user=${user.telegram_username}`
+      );
+      return;
+    }
+    return notification.notify(
+      user,
+      renderSignal(signal, settings.hideSensitiveData),
+      {
+        disable_web_page_preview: true
+      }
+    );
+  });
+
+  for (const follows of await followsRepository.getAll()) {
+    followTrades.addAll(follows.follows, follows.id);
+  }
+
+  followsRepository.on('follow', (user, address) =>
+    followTrades.add(address, user.id)
+  );
+  followsRepository.on('unfollow', (user, address) =>
+    followTrades.remove(address, user.id)
+  );
+
+  logger.info('followers trade signals initialized..');
 
   let blockNumber = initialBlock.number;
   setInterval(() => blockNumber++, 10 * 1000).unref();
@@ -131,6 +170,7 @@ async function main() {
   logger.info('Running bot..');
 
   const shutdown = () => {
+    provider.destroy();
     db.close();
     bot.stop();
   };

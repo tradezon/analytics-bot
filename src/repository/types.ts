@@ -43,9 +43,14 @@ export interface UserRepository {
 }
 
 export interface FollowsRepository {
+  getAll(): Promise<Array<{ id: number; follows: string[] }>>;
   getUserFollows(user: User): Promise<Follows>;
   toggleFollow(user: User, address: string): Promise<boolean>;
   updateUserFollows(user: User, follows: Follows): Promise<boolean>;
+  on(
+    event: 'follow' | 'unfollow',
+    cb: (user: User, address: string) => void
+  ): void;
 }
 
 export interface SignalRepository {

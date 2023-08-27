@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import type { Report, TokenInfo } from '../types';
-import { formatUnits } from 'ethers';
+import { formatEther, formatUnits } from 'ethers';
 import {
   AMOUNT_IN_USD_AVG,
   AMOUNT_IN_USD_MEDIAN,
@@ -14,6 +14,14 @@ import {
   WIN_RATE
 } from './const';
 import { saveBalance } from './save-balance';
+import { Signal } from '../follow-trades';
+import { bold, code, join, link } from 'telegraf/format';
+import {
+  DAI_ADDRESS,
+  USDC_ADDRESS,
+  USDT_ADDRESS,
+  WETH_ADDRESS
+} from '../analytics/const';
 
 const LOWER_PERCENT = -15;
 const HIGHER_PERCENT = 15;
@@ -245,3 +253,49 @@ const filterTokensByPercent = (tokens: TokenInfo[], percent: number) => {
 
   return [filtered, other];
 };
+
+const getInputUSD = (amount: bigint, token: string) => {
+  switch (token) {
+    case DAI_ADDRESS:
+      return formatUnits(amount, 18);
+    case USDC_ADDRESS:
+    case USDT_ADDRESS:
+      return formatUnits(amount, 6);
+    default:
+      return '';
+  }
+};
+
+function renderTokenAndAmount(token: string, amount: bigint) {
+  if (token === WETH_ADDRESS) {
+    return `${formatEther(amount)} ETH`;
+  }
+
+  return `${getInputUSD(amount, token)}\$`;
+}
+
+function renderSwap(swap: Signal['swaps'][0]) {
+  return join([
+    link(
+      prettyAddress(swap.wallet),
+      `https://app.zerion.io/${swap.wallet}/history`
+    ),
+    ' for ',
+    renderTokenAndAmount(swap.tokenIn, swap.amountIn),
+    ' received ',
+    code(swap.tokenOut[0])
+  ]);
+}
+
+export function renderSignal(signal: Signal, spoiler: boolean) {
+  return join(
+    [
+      join(['🛎️ ', bold('New buy'), ':']),
+      code(signal.token),
+      '',
+      join(['🔄 ', bold('Swaps:')]),
+      ...signal.swaps.map(renderSwap)
+    ],
+    '\n'
+  );
+}

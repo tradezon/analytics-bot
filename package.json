@@ -16,7 +16,7 @@
     "convert-hrtime": "^5.0.0",
     "dayjs": "^1.11.8",
     "dexguru-sdk": "^1.0.8",
-    "ethers": "^6.6.0",
+    "ethers": "^6.7.1",
     "etherscan-api": "^10.3.0",
     "invariant": "^2.2.4",
     "jest": "^29.5.0",
