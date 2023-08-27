@@ -13,9 +13,12 @@ import { Tier, User } from './repository/types';
 import { createSqliteUserRepository } from './repository/user';
 import { createSqliteFollowsRepository } from './repository/follows';
 import { createNotificationService } from './bot/notification';
+import { createSqliteSignalRepository } from './repository/signal';
+import { signal } from './commands/signal';
 
 const WALLET_TEXT = 'Wallet analytics 💰';
 const ADMIN_TEXT = 'Admin panel 👑';
+const SIGNAL_TEXT = 'Signals 🛎️️️';
 function scenes(sc: [string, string][]) {
   const map = new Map(sc);
   return (ctx: Context, next: () => Promise<void>) => {
@@ -30,10 +33,10 @@ function scenes(sc: [string, string][]) {
   };
 }
 function menuButtons(ctx: Context) {
-  const buttons: string[] = [WALLET_TEXT];
+  const buttons: string[][] = [[WALLET_TEXT, SIGNAL_TEXT]];
   const user = ctx.state.user as User;
   if (user.tier === Tier.GOD_MODE) {
-    buttons.push(ADMIN_TEXT);
+    buttons.push([ADMIN_TEXT]);
   }
   return buttons;
 }
@@ -66,6 +69,7 @@ async function main() {
   });
   const userRepository = createSqliteUserRepository(db);
   const followsRepository = createSqliteFollowsRepository(db);
+  const signalRepository = createSqliteSignalRepository(db);
 
   let blockNumber = initialBlock.number;
   setInterval(() => blockNumber++, 10 * 1000).unref();
@@ -75,7 +79,7 @@ async function main() {
   const notification = createNotificationService(userRepository, bot);
   bot.use(Telegraf.log());
   bot.use(createAuthMiddleware(userRepository));
-  const adminScenario = await admin(userRepository);
+  const adminScenario = admin(userRepository);
   const walletScenario = wallet(
     bot,
     notification,
@@ -84,30 +88,41 @@ async function main() {
     followsRepository,
     () => blockNumber
   );
-  const stage = new Scenes.Stage([walletScenario as any, adminScenario as any]);
+  const signalScenario = signal(bot, signalRepository);
+  const stage = new Scenes.Stage([
+    walletScenario as any,
+    signalScenario as any,
+    adminScenario as any
+  ]);
   bot.use(session());
   bot.use(
     scenes([
       [ADMIN_TEXT, adminScenario.id],
       ['/admin', adminScenario.id],
       [WALLET_TEXT, walletScenario.id],
-      ['/wallet', walletScenario.id]
+      ['/wallet', walletScenario.id],
+      [SIGNAL_TEXT, signalScenario.id],
+      ['/signal', signalScenario.id]
     ])
   );
 
   bot.use(stage.middleware() as any);
 
-  bot.start((ctx) => {
-    ctx.reply(
+  const handleMenu = (ctx: any) => {
+    return ctx.reply(
       'Welcome to tradezon analytics bot 👋\nBot provides wallets trading analytics',
       Markup.keyboard(menuButtons(ctx)).resize()
     );
-  });
+  };
 
+  bot.start(handleMenu);
+  bot.command('menu', handleMenu);
   bot.command('admin', Scenes.Stage.enter(adminScenario.id) as any);
   bot.command('wallet', Scenes.Stage.enter(walletScenario.id) as any);
+  bot.command('signal', Scenes.Stage.enter(signalScenario.id) as any);
   bot.hears(ADMIN_TEXT, Scenes.Stage.enter(adminScenario.id) as any);
   bot.hears(WALLET_TEXT, Scenes.Stage.enter(walletScenario.id) as any);
+  bot.hears(SIGNAL_TEXT, Scenes.Stage.enter(signalScenario.id) as any);
 
   bot.catch((error) => logger.error(error));
 

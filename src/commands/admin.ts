@@ -14,15 +14,13 @@ function tierToString(tier: Tier): string {
   }
 }
 
-export async function admin(
-  repository: UserRepository
-): Promise<BaseScene<any>> {
+export function admin(repository: UserRepository): BaseScene<any> {
   const usersAction = 'USERS_ACTION';
   const addUserAction = 'ADD_USER_ACTION';
   const removeUserAction = 'REMOVE_USER_ACTION';
   const scenario = new Scenes.BaseScene('SCENARIO_USERS');
   scenario.enter((ctx) => {
-    ctx.reply(
+    return ctx.reply(
       'Actions:',
       Markup.inlineKeyboard([
         Markup.button.callback('Users', usersAction),

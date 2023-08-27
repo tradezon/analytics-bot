@@ -22,6 +22,11 @@ export interface Follows {
   follows: Set<string>;
 }
 
+export interface SignalSettings {
+  follows: boolean;
+  hideSensitiveData: boolean;
+}
+
 export interface UserRepository {
   deleteUser(id: string): Promise<boolean>;
   addUser(user: string, lang: Lang, tier: Tier): Promise<boolean>;
@@ -41,4 +46,10 @@ export interface FollowsRepository {
   getUserFollows(user: User): Promise<Follows>;
   toggleFollow(user: User, address: string): Promise<boolean>;
   updateUserFollows(user: User, follows: Follows): Promise<boolean>;
+}
+
+export interface SignalRepository {
+  getSettings(user: User): Promise<SignalSettings>;
+  toggleFollows(user: User): Promise<SignalSettings>;
+  toggleHideSensitive(user: User): Promise<SignalSettings>;
 }
