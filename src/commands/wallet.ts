@@ -246,7 +246,7 @@ export function wallet(
         addr = getAddress((ctx.message as any).text);
         await provider.getBalance(addr);
         (ctx.wizard.state as any).address = addr;
-        ctx.reply('Select time range:', {
+        await ctx.reply('Select time range:', {
           ...Markup.inlineKeyboard([
             [
               Markup.button.callback('Latest 🔎', 'Latest 🔎'),
@@ -273,7 +273,7 @@ export function wallet(
       let blockEnd: number | undefined = undefined;
       switch (data) {
         case 'Select period 🚩': {
-          ctx.editMessageText(
+          await ctx.editMessageText(
             'Enter period in format DD.MM.YYYY DD.MM.YYYY, e.g. 25.01.2022 30.06.2022\nMaximum range is 3 month.'
           );
           return ctx.wizard.next();
@@ -304,10 +304,10 @@ export function wallet(
       }
       const wallet = (ctx.wizard.state as any).address;
       if (!wallet) {
-        ctx.replyWithHTML('<b>Wallet not found</b> ❌');
+        await ctx.replyWithHTML('<b>Wallet not found</b> ❌');
         return ctx.scene.leave();
       }
-      ctx.editMessageText(`Preparing report for ${wallet}... ⌛`);
+      await ctx.editMessageText(`Preparing report for ${wallet}... ⌛`);
 
       queue.push({
         user: ctx.state.user,

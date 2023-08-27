@@ -210,41 +210,30 @@ export async function findSwapsInTransaction(
   let ethers = 0n;
 
   try {
-    ethers = await getTransferredEtherWithRetry(
-      etherscanApi,
-      getAddress(transaction.from),
-      transaction.hash
-    );
+    const result = await alchemyProvider.send('debug_traceTransaction', [
+      transaction.hash,
+      {
+        tracer: 'callTracer'
+      }
+    ]);
+    if (!result || !result.calls) return null;
+    const toVisit = result.calls;
+    for (let i = 0; i < toVisit.length; i++) {
+      const call = toVisit[i];
+      if (call.calls) {
+        for (const innerCall of call.calls) toVisit.push(innerCall);
+      }
+      if (call.type !== 'CALL') continue;
+      if (call.value === '0x0') continue;
+      if (getAddress(call.to) !== transaction.from) continue;
+      ethers += BigInt(call.value);
+    }
   } catch (e: any) {
-    logger.error(e);
+    if (!etherscanApi) {
+      logger.error(e);
+    } else {
+    }
   }
-
-  // try {
-  //   const result = await alchemyProvider.send('debug_traceTransaction', [
-  //     transaction.hash,
-  //     {
-  //       tracer: 'callTracer'
-  //     }
-  //   ]);
-  //   if (!result || !result.calls) return null;
-  //   const toVisit = result.calls;
-  //   for (let i = 0; i < toVisit.length; i++) {
-  //     const call = toVisit[i];
-  //     if (call.calls) {
-  //       for (const innerCall of call.calls) toVisit.push(innerCall);
-  //     }
-  //     if (call.type !== 'CALL') continue;
-  //     if (call.value === '0x0') continue;
-  //     if (getAddress(call.to) !== transaction.from) continue;
-  //     ethers += BigInt(call.value);
-  //   }
-  // } catch (e: any) {
-  //   if (!etherscanApi) {
-  //     logger.error(e);
-  //   } else {
-  //
-  //   }
-  // }
 
   if (ethers > 0n) {
     let i = swap.tokenOut.findIndex((t) => t === WETH_ADDRESS);

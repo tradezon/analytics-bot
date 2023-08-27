@@ -151,7 +151,7 @@ ${
     : ''
 }${`\n🧩 *Tokens with \\<\\+${escape(
       HIGHER_PERCENT
-    )}\\% TOKEN\\_PNL \\(${escape(restProfit.toFixed(0))}\\$\\)*\\:\n${higher
+    )}\\% TOKEN\\_PNL \\(${escape(restProfit.toFixed(0))}\\$\\)*\\:\n${lower
       .map(({ token, symbol }) =>
         hyperLink(etherscanAddressLink(token), escape(symbol))
       )

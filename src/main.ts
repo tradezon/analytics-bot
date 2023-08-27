@@ -109,6 +109,8 @@ async function main() {
   bot.hears(ADMIN_TEXT, Scenes.Stage.enter(adminScenario.id) as any);
   bot.hears(WALLET_TEXT, Scenes.Stage.enter(walletScenario.id) as any);
 
+  bot.catch((error) => logger.error(error));
+
   bot.launch();
 
   logger.info('Running bot..');
