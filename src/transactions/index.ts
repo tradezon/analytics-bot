@@ -147,7 +147,12 @@ export async function getAllSwaps(
           }
           const timestamp = Number(tx.timeStamp) * 1000;
           logger.trace(`Finding swap for ${ts.hash}`);
-          const swap = await findSwapsInTransaction(ts, receipt, etherscanApi);
+          const swap = await findSwapsInTransaction(
+            ts,
+            receipt,
+            provider,
+            etherscanApi
+          );
           if (swap) {
             start = start ? Math.min(timestamp, start) : timestamp;
             (swap as any).index = i;

@@ -362,7 +362,12 @@ ${sgn.slice(0, 5).map(windowEntryToView).join('\n\n')}`
     if (!receipt || !tx || !tx.to || !tx.blockNumber) return;
     if (receipt.logs.length < 3) return;
     if (await isContract(tx.from, provider)) return;
-    const swap = await findSwapsInTransaction(tx, receipt, etherscanApi);
+    const swap = await findSwapsInTransaction(
+      tx,
+      receipt,
+      provider,
+      etherscanApi
+    );
     if (!swap || swap.tokenOut.length > 1 || swap.tokenIn.length > 1) return;
     const tokenIn = swap.tokenIn[0];
     const tokenOut = swap.tokenOut[0];

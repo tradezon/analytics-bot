@@ -170,9 +170,11 @@ async function main() {
   logger.info('Running bot..');
 
   const shutdown = () => {
+    provider.removeAllListeners();
     provider.destroy();
     db.close();
     bot.stop();
+    setTimeout(() => process.exit(1), 100).unref();
   };
 
   process.on('SIGINT', shutdown);

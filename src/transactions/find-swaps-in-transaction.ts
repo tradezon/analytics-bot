@@ -1,8 +1,15 @@
-import { AbiCoder, getAddress, JsonRpcProvider, zeroPadValue } from 'ethers';
+import {
+  AbiCoder,
+  getAddress,
+  JsonRpcProvider,
+  WebSocketProvider,
+  zeroPadValue
+} from 'ethers';
 import type { TransactionReceipt, TransactionResponse, Log } from 'ethers';
 import logger from '../logger';
 import { ratelimit } from '../utils/promise-ratelimit';
 import { retry } from '../utils/promise-retry';
+import { findSwappedToken } from './find-swapped-token';
 
 export interface TransactionSwap {
   wallet: string;
@@ -143,17 +150,50 @@ function findUniswapsInTransaction(
   return swap;
 }
 
+async function checkMultiswap(
+  swap: TransactionSwap,
+  receipt: TransactionReceipt,
+  provider: JsonRpcProvider | WebSocketProvider
+) {
+  const swappedTokens = await findSwappedToken(receipt, provider);
+  if (swappedTokens) {
+    if (swap.tokenIn.length > 1) {
+      const tokensSet = new Set(swap.tokenIn);
+      for (const t of swap.tokenIn)
+        if (!swappedTokens.has(t)) tokensSet.delete(t);
+      swap.tokenIn = Array.from(tokensSet);
+    }
+    if (swap.tokenOut.length > 1) {
+      const tokensSet = new Set(swap.tokenOut);
+      for (const t of swap.tokenOut)
+        if (!swappedTokens.has(t)) tokensSet.delete(t);
+      swap.tokenOut = Array.from(tokensSet);
+    }
+
+    if (swap.tokenIn.length === 0) return null;
+    if (swap.tokenOut.length === 0) return null;
+  }
+  return swap;
+}
+
 export async function findSwapsInTransaction(
   transaction: TransactionResponse,
   receipt: TransactionReceipt,
+  provider: JsonRpcProvider | WebSocketProvider,
   etherscanApi?: any
 ): Promise<TransactionSwap | null> {
   if (!transaction.to) return null;
   if (
     UNISWAP_ROUTERS.has(transaction.to) ||
     UNISWAP_ROUTERS.has(transaction.from)
-  )
-    return findUniswapsInTransaction(transaction, receipt);
+  ) {
+    const swap = await findUniswapsInTransaction(transaction, receipt);
+    if (!swap) return null;
+    if (swap.tokenIn.length > 1 || swap.tokenOut.length > 1) {
+      return checkMultiswap(swap, receipt, provider);
+    }
+    return swap;
+  }
   const inOut = new Map<string, { in: bigint; out: bigint }>();
   const wallet = zeroPadValue(transaction.from, 32);
   if (transaction.value > 0n)
@@ -246,6 +286,9 @@ export async function findSwapsInTransaction(
   }
 
   if (swap.tokenOut.length === 0) return null;
+  if (swap.tokenIn.length > 1 || swap.tokenOut.length > 1) {
+    return checkMultiswap(swap, receipt, provider);
+  }
 
   return swap;
 }
