@@ -15,7 +15,7 @@ import {
 } from './const';
 import { saveBalance } from './save-balance';
 import { Signal } from '../follow-trades';
-import { bold, code, join, link } from 'telegraf/format';
+import { bold, code, italic, join, link } from 'telegraf/format';
 import {
   DAI_ADDRESS,
   USDC_ADDRESS,
@@ -157,13 +157,19 @@ ${
         )
         .join('\n')}`
     : ''
-}${`\n🧩 *Tokens with \\<\\+${escape(
-      HIGHER_PERCENT
-    )}\\% TOKEN\\_PNL \\(${escape(restProfit.toFixed(0))}\\$\\)*\\:\n${lower
-      .map(({ token, symbol }) =>
-        hyperLink(etherscanAddressLink(token), escape(symbol))
-      )
-      .join('\\, ')}`}${
+}${
+      lower.length > 0
+        ? `\n🧩 *Tokens with \\<\\+${escape(
+            HIGHER_PERCENT
+          )}\\% TOKEN\\_PNL \\(${escape(
+            restProfit.toFixed(0)
+          )}\\$\\)*\\:\n${lower
+            .map(({ token, symbol }) =>
+              hyperLink(etherscanAddressLink(token), escape(symbol))
+            )
+            .join('\\, ')}`
+        : ''
+    }${
       report.tokensInMultiTokensSwaps.length > 0
         ? `\n🧮 *Tokens in multitokens swaps*:\n${report.tokensInMultiTokensSwaps
             .map(({ token, symbol }) =>
@@ -297,5 +303,26 @@ export function renderSignal(signal: Signal, spoiler: boolean) {
       ...signal.swaps.map(renderSwap)
     ],
     '\n'
+  );
+}
+
+export function renderAccountsList(accounts: string[]) {
+  return join(
+    [
+      bold('📍 List of wallets:'),
+      join(
+        accounts.map((acc) =>
+          join([
+            link(prettyAddress(acc), `https://app.zerion.io/${acc}/history`),
+            ' ',
+            italic('press to delete'),
+            '👉 ',
+            `/dlt_${acc}`
+          ])
+        ),
+        '\n'
+      )
+    ],
+    '\n\n'
   );
 }

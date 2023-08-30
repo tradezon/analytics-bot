@@ -10,7 +10,12 @@ import type { BaseScene } from 'telegraf/src/scenes/base';
 import { getAllSwaps } from '../transactions';
 import { AnalyticsEngine } from '../analytics';
 import reportsCache from '../analytics/cache';
-import { renderLosses, renderShort, renderTokensList } from '../utils/telegram';
+import {
+  renderAccountsList,
+  renderLosses,
+  renderShort,
+  renderTokensList
+} from '../utils/telegram';
 import { Report } from '../types';
 import { findBlockByTimestamp } from '../utils/find-block-by-timestamp';
 import logger from '../logger';
@@ -233,7 +238,10 @@ export function wallet(
     'SCENARIO_TYPE_WALLET',
     ((ctx: any) => {
       ctx.replyWithHTML(
-        '<b>Type wallet address</b> 🖊️ <i>only Etherium mainnet supported in alpha</i>'
+        '<b>Type wallet address</b> 🖊️ <i>only Etherium mainnet supported in alpha</i>',
+        Markup.inlineKeyboard([
+          Markup.button.callback('Manage follows 🛠', 'manage_follows')
+        ])
       );
       return ctx.wizard.next();
     }) as any,
@@ -468,6 +476,29 @@ export function wallet(
       const [, markup] = await paramsForShortView(report, ctx.state.user);
       return ctx.editMessageReplyMarkup(markup.reply_markup);
     }
+  });
+
+  bot.command(/^dlt_(.+)/, async (ctx) => {
+    const match = ctx.message?.text.match(/dlt_(.+)$/);
+    if (!match) return;
+    const follows = await followsRepository.getUserFollows(ctx.state.user);
+    follows.follows.delete(match[1]);
+    const updated = await followsRepository.updateUserFollows(
+      ctx.state.user,
+      follows
+    );
+    if (updated) {
+      return ctx.reply(renderAccountsList(Array.from(follows.follows)));
+    }
+  });
+
+  scenarioTypeWallet.action('manage_follows', async (ctx) => {
+    if (!ctx.state.user) return;
+    ctx.scene?.leave();
+    const follows = await followsRepository.getUserFollows(ctx.state.user);
+
+    // @ts-expect-error
+    return ctx.editMessageText(renderAccountsList(Array.from(follows.follows)));
   });
 
   return scenarioTypeWallet as any;
