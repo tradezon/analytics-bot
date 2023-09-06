@@ -20,6 +20,8 @@ export interface TransactionSwap {
   amountOut: bigint[];
 }
 
+const EMPTY_ARR = [] as any[];
+
 const TRANSFER_TOPIC =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
@@ -34,6 +36,31 @@ const alchemyProvider = new JsonRpcProvider(
   'mainnet',
   { batchMaxCount: 1 }
 );
+
+function inOutToTokens(
+  inOut: Map<string, { in: bigint; out: bigint }>
+): [
+  tokenIn: string[],
+  amountIn: bigint[],
+  tokenOut: string[],
+  amountOut: bigint[]
+] {
+  const tokenOut: string[] = [];
+  const tokenIn: string[] = [];
+  const amountIn: bigint[] = [];
+  const amountOut: bigint[] = [];
+  for (const [key, value] of inOut) {
+    if (value.out > value.in) {
+      tokenOut.push(key);
+      amountOut.push(value.out - value.in);
+    } else {
+      tokenIn.push(key);
+      amountIn.push(value.in - value.out);
+    }
+  }
+
+  return [tokenIn, amountIn, tokenOut, amountOut];
+}
 
 function getAmount(log: Log): bigint {
   const data = log.topics.length > 3 ? log.topics[3] : log.data;
@@ -229,21 +256,17 @@ export async function findSwapsInTransaction(
   const swap: TransactionSwap = {
     fee: receipt.fee,
     wallet: transaction.from,
-    tokenIn: [],
-    tokenOut: [],
-    amountIn: [],
-    amountOut: []
+    tokenIn: EMPTY_ARR,
+    tokenOut: EMPTY_ARR,
+    amountIn: EMPTY_ARR,
+    amountOut: EMPTY_ARR
   };
 
-  for (const [key, value] of inOut) {
-    if (value.out > value.in) {
-      swap.tokenOut.push(key);
-      swap.amountOut.push(value.out - value.in);
-    } else {
-      swap.tokenIn.push(key);
-      swap.amountIn.push(value.in - value.out);
-    }
-  }
+  const result = inOutToTokens(inOut);
+  swap.tokenIn = result[0];
+  swap.tokenOut = result[2];
+  swap.amountOut = result[3];
+  swap.amountIn = result[1];
 
   if (swap.tokenIn.length === 0) return null;
 
@@ -269,20 +292,29 @@ export async function findSwapsInTransaction(
       ethers += BigInt(call.value);
     }
   } catch (e: any) {
-    if (!etherscanApi) {
-      logger.error(e);
-    } else {
-    }
+    logger.error(e);
+    try {
+      ethers = await getTransferredEtherWithRetry(
+        etherscanApi,
+        getAddress(transaction.from),
+        transaction.hash
+      );
+    } catch {}
   }
 
   if (ethers > 0n) {
-    let i = swap.tokenOut.findIndex((t) => t === WETH_ADDRESS);
-    if (i > -1) {
-      swap.amountOut[i] += ethers;
+    const entry = inOut.get(WETH_ADDRESS);
+    if (entry) {
+      entry.out += ethers;
     } else {
-      swap.tokenOut.push(WETH_ADDRESS);
-      swap.amountOut.push(ethers);
+      inOut.set(WETH_ADDRESS, { in: 0n, out: ethers });
     }
+
+    const result = inOutToTokens(inOut);
+    swap.tokenIn = result[0];
+    swap.tokenOut = result[2];
+    swap.amountOut = result[3];
+    swap.amountIn = result[1];
   }
 
   if (swap.tokenOut.length === 0) return null;

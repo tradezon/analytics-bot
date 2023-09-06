@@ -286,10 +286,8 @@ function renderSwap(swap: Signal['swaps'][0]) {
       prettyAddress(swap.wallet),
       `https://app.zerion.io/${swap.wallet}/history`
     ),
-    ' for ',
-    renderTokenAndAmount(swap.tokenIn, swap.amountIn),
-    ' received ',
-    code(swap.tokenOut[0])
+    ' bought for ',
+    renderTokenAndAmount(swap.tokenIn, swap.amountIn)
   ]);
 }
 

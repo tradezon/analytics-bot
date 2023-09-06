@@ -49,12 +49,19 @@ export async function followTradesEngine(
       const swaps = tradesCache.get(token);
       if (!swaps) {
         tradesCache.set(token, [swap]);
-        formSignalIfAny(token, [swap]);
         continue;
       }
 
       swaps.push(swap);
-      formSignalIfAny(token, swaps);
+
+      const buyers = new Set<string>();
+      for (const swap of swaps) {
+        buyers.add(swap.wallet);
+        if (buyers.size > 1) {
+          formSignalIfAny(token, swaps);
+          break;
+        }
+      }
     }
   });
 

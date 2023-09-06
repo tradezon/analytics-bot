@@ -34,6 +34,31 @@ function getAmount(log: Log): bigint {
   return abiCoder.decode(['uint256'], data)[0];
 }
 
+function inOutToTokens(
+  inOut: Map<string, { in: bigint; out: bigint }>
+): [
+  tokenIn: string[],
+  amountIn: bigint[],
+  tokenOut: string[],
+  amountOut: bigint[]
+] {
+  const tokenOut: string[] = [];
+  const tokenIn: string[] = [];
+  const amountIn: bigint[] = [];
+  const amountOut: bigint[] = [];
+  for (const [key, value] of inOut) {
+    if (value.out > value.in) {
+      tokenOut.push(key);
+      amountOut.push(value.out - value.in);
+    } else {
+      tokenIn.push(key);
+      amountIn.push(value.in - value.out);
+    }
+  }
+
+  return [tokenIn, amountIn, tokenOut, amountOut];
+}
+
 export async function findSwapsInTransactionFollowTrades(
   transaction: TransactionResponse,
   receipt: TransactionReceipt,
@@ -76,15 +101,11 @@ export async function findSwapsInTransactionFollowTrades(
     amountOut: []
   };
 
-  for (const [key, value] of inOut) {
-    if (value.out > value.in) {
-      swap.tokenOut.push(key);
-      swap.amountOut.push(value.out - value.in);
-    } else {
-      swap.tokenIn.push(key);
-      swap.amountIn.push(value.in - value.out);
-    }
-  }
+  const result = inOutToTokens(inOut);
+  swap.tokenIn = result[0];
+  swap.tokenOut = result[2];
+  swap.amountOut = result[3];
+  swap.amountIn = result[1];
 
   if (swap.tokenIn.length === 0) return null;
 
@@ -117,13 +138,18 @@ export async function findSwapsInTransactionFollowTrades(
   }
 
   if (ethers > 0n) {
-    let i = swap.tokenOut.findIndex((t) => t === WETH_ADDRESS);
-    if (i > -1) {
-      swap.amountOut[i] += ethers;
+    const entry = inOut.get(WETH_ADDRESS);
+    if (entry) {
+      entry.out += ethers;
     } else {
-      swap.tokenOut.push(WETH_ADDRESS);
-      swap.amountOut.push(ethers);
+      inOut.set(WETH_ADDRESS, { in: 0n, out: ethers });
     }
+
+    const result = inOutToTokens(inOut);
+    swap.tokenIn = result[0];
+    swap.tokenOut = result[2];
+    swap.amountOut = result[3];
+    swap.amountIn = result[1];
   }
 
   if (swap.tokenOut.length === 0) return null;
