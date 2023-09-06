@@ -68,10 +68,12 @@ const SETTINGS = {
   MAX_USD: 3600,
   MAX_AMOUNT_OF_TOKENS: 30,
   BLOCKS: blocksIn14Days,
-  MIN_TOKEN_PNL: 13,
-  MIN_AVG_IN_USD: 500,
-  MIN_MEDIAN_IN_USD: 500,
+  MIN_TOKEN_PNL: 15,
+  MIN_AVG_IN_USD: 400,
+  MIN_MEDIAN_IN_USD: 400,
   MIN_WINRATE: 0.45,
+  WINRATE_THRESHOLD: 0.75,
+  TOKENS_THRESHOLD: 6,
   MIN_PNL: 10000,
   MAX_SWAPS: 120
 };
@@ -90,6 +92,12 @@ const pnlFromReport = (report: Report): number | null => {
 
 const tokenPnlFromReport = (report: Report): number | null => {
   const i = report.metrics.indexOf(PNL_AVERAGE_PERCENT);
+  if (i > -1) return report.metricValues[i];
+  return null;
+};
+
+const tokensFromReport = (report: Report): number | null => {
+  const i = report.metrics.indexOf(AMOUNT_OF_TOKENS);
   if (i > -1) return report.metricValues[i];
   return null;
 };
@@ -146,18 +154,26 @@ const passFilters = (
   const honeypots = report.honeypots?.tokens.length || 0;
   if (honeypots && honeypots / (honeypots + report.tokens.length) > 0.79)
     return false;
+
   const pnl2 = pnl2FromReport(report);
   const pnl = pnlFromReport(report);
   const winrate = winrateFromReport(report);
   const tokenPnl = tokenPnlFromReport(report);
+  const tokens = tokensFromReport(report) || 0;
   const medianIn = medianInFromReport(report);
   const avgIn = avgInFromReport(report);
   if (pnl2 === 0 && pnl !== pnl2) return false;
+  if (tokenPnl && tokenPnl < SETTINGS.MIN_TOKEN_PNL) return false;
+  if (
+    winrate &&
+    winrate >= SETTINGS.WINRATE_THRESHOLD &&
+    tokens >= SETTINGS.TOKENS_THRESHOLD
+  )
+    return [token, amount, report, timestamp, 'pass'];
   if (!pnl2 || pnl2 < SETTINGS.MIN_PNL) return false;
   const amountOfTokens = amountOfTokensReport(report);
   if (!amountOfTokens || amountOfTokens < 2) return false;
   if (winrate && winrate < SETTINGS.MIN_WINRATE) return false;
-  if (tokenPnl && tokenPnl < SETTINGS.MIN_TOKEN_PNL) return false;
   if (amountOfTokens > SETTINGS.MAX_AMOUNT_OF_TOKENS)
     return [token, amount, report, timestamp, 'max_tokens'];
   if (avgIn && avgIn < SETTINGS.MIN_AVG_IN_USD)
